@@ -14,147 +14,162 @@ canvas {
 <script>
 
 let	points = []
-const objects = document.documentElement.clientHeight*document.documentElement.clientWidth/20 //Must be square number
-const complexity = 12+Math.floor(Math.random()*13)
-const smoothing = 3+Math.floor(Math.random()*8)
-const startingoctave = Math.floor(Math.random()*4)
-let octaveratio = 0.85+Math.random()*0.07 //Rate of octave change. Larger number -> less octave mixing effects
-let metaoctaveratio = 0.3+Math.random()*0.1 //Rate of octaveratio change. Larger number -> less octave mixing effects
-const elevationbias = Math.random()//0.0+ 0.5*0.5 + 0.5*(Math.random()-0.5)
-const elevationbiasratio = Math.random() //How similar to the biased elevation the whole map should be;
-const microvariancemax = 0.015+Math.random()*0.025 //0.05//Amount of random higher-octave change per octave combination. Larger number -> more change
-const objectsx = Math.sqrt(objects)
-const objectsy = Math.sqrt(objects)
+const octaves = 20
+const micronoise = 0
+const objects = document.documentElement.clientHeight*document.documentElement.clientWidth;
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
-const pixelheight = docheight/objectsy
-const pixelwidth = docwidth/objectsx
+let objectsx = Math.floor(objects/docheight)
+let objectsy = Math.floor(objects/docwidth)
 
-function colourGet(x,y,colourmap) {
-	let colourvalue = colourmap[y][x]
-	if (colourvalue < 0.36) {return 'Teal'}
-	else if (colourvalue < 0.43) {return 'DarkCyan'}
-	else if (colourvalue < 0.45) {return 'LightSeaGreen'}
-	else if (colourvalue < 0.46) {return 'MediumAquaMarine'}
-	else if (colourvalue < 0.48) {return 'Khaki'}
-	else if (colourvalue < 0.52) {return 'DarkGreen'}
-	else if (colourvalue < 0.56) {return 'Green'}
-	else if (colourvalue < 0.62) {return 'ForestGreen'}
-	else if (colourvalue < 0.66) {return 'OliveDrab'}
-	else if (colourvalue < 0.69) {return 'DarkOliveGreen'}
-	else if (colourvalue < 0.70) {return 'DarkGrey'}
-	else if (colourvalue < 0.72) {return 'Silver'}
-	else if (colourvalue < 0.73) {return 'LightGrey'}
-	else if (colourvalue < 0.74) {return 'Gainsboro'}
-	else if (colourvalue < 0.82) {return 'WhiteSmoke'}
-	else if (colourvalue < 0.85) {return 'GhostWhite'}
-	else if (colourvalue < 0.9) {return 'Snow'}
-	else if (colourvalue <= 1) {return 'White'}
+// Control for various sizing/parameter issues
+if (docwidth > 600) {
+	objectsx = Math.floor(objectsx/4)
+	}
+if (docheight > 600) {
+	objecty = Math.floor(objectsy/4)
+	}
+if (Math.floor(objects/docheight) < 1) {
+	objectsx = 1
+	}
+if (Math.floor(objects/docwidth) < 1) {
+	objectsy = 1
+	}
+const pixelheight = Math.round(docheight/objectsy)
+const pixelwidth = Math.round(docwidth/objectsx)
+
+function colourGet(y,x,colourmap) {
+	let colourvalue = colourmap[y][x];
+		if (colourvalue < 0.36) {return 'Teal'}
+		else if (colourvalue < 0.43) {return 'DarkCyan'}
+		else if (colourvalue < 0.45) {return 'LightSeaGreen'}
+		else if (colourvalue < 0.46) {return 'MediumAquaMarine'}
+		else if (colourvalue < 0.48) {return 'Khaki'}
+		else if (colourvalue < 0.52) {return 'DarkGreen'}
+		else if (colourvalue < 0.56) {return 'Green'}
+		else if (colourvalue < 0.62) {return 'ForestGreen'}
+		else if (colourvalue < 0.66) {return 'OliveDrab'}
+		else if (colourvalue < 0.69) {return 'DarkOliveGreen'}
+		//else if (colourvalue < 0.76) {return 'DarkGrey'}
+		else if (colourvalue < 0.74) {return 'DimGrey'}
+		//else if (colourvalue < 0.78) {return 'Silver'}
+		//else if (colourvalue < 0.79) {return 'LightGrey'}
+		else if (colourvalue < 0.76) {return 'Gainsboro'}
+		else if (colourvalue < 0.77) {return 'WhiteSmoke'}
+		else if (colourvalue < 0.78) {return 'GhostWhite'}
+		else if (colourvalue < 0.9) {return 'Snow'}
+		else if (colourvalue <= 1) {return 'White'}
 	}
 
-function noisegen(xtotal,ytotal,octaves) {
-	if (octaves < 2) {octaves = 2};
-	let octavesarray = []; 
-	for (let octave = 0; octave < octaves; octave++) {
-		octavesarray.push([]);
-		let seeds = [];
-		for (let seedy = 0; seedy < octave+1; seedy++) {
-			seeds.push([]);
-			for (let seedx = 0; seedx < octave+1; seedx++) {
-				seeds[seedy].push([]);
-				seeds[seedy][seedx] = Math.random();
-				}
+function noisegen(lengthy, lengthx, octaves, micronoise) {
+	// Length should also be a power of 2
+	// This part ensures octave steps don't exceed the array length
+	if (lengthy < (2**octaves)/2) {
+			while (lengthy < (2**octaves)/2) {
+					octaves = octaves - 1
+					}
 			}
-		for (let y = 0; y < ytotal; y++) {
-			octavesarray[octave].push([]);
-			for (let x = 0; x < xtotal; x++) {
-				octavesarray[octave][y][x] = seeds[Math.floor((y/ytotal)*seeds.length)][Math.floor((x/xtotal)*seeds.length)];
-				}
+	if (lengthx < (2**octaves)/2) {
+			while (lengthx < (2**octaves)/2) {
+					octaves = octaves - 1
+					}
 			}
-	}
-	// Blur each octave in octavesarray
-	for (let octave = 0; octave < octavesarray.length; octave++) {
-		for (let s = 1; s < smoothing/(octave+1); s++) {
-			octavesarray[octave] = blur(octavesarray[octave])
+
+	// Initialise seed array
+	let randoms = [];
+	for (let y = 0; y < lengthy; y++) {
+		randoms.push([]);
+		for (let x = 0; x < lengthx; x++) {
+			randoms[y].push(Math.random());
 			}
 		}
-	
-	// Mix/combined each octave
-	let octavecombination = [];
-	for (let y = 0; y < ytotal; y++) {
-		octavecombination.push([]);
-		for (let x = 0; x < xtotal; x++) {
-			octavecombination[y].push([])
-			for (let octave = 0; octave < octavesarray.length; octave++) {
-				let cumulativeoctiveratio = octaveratio
-				let microvariance = Math.random()*microvariancemax
-				if (octave < startingoctave) {}
-				else if (octave == startingoctave) {
-					octavecombination[y][x] = elevationbiasratio*elevationbias + (1-(elevationbiasratio*elevationbias))*octavesarray[octave][y][x]
+
+	let combinationsum = 0;
+	let octavesarray = [];
+	let combined = [];
+	for (let y = 0; y < lengthy; y++) {
+		octavesarray.push([]);
+		combined.push([]);
+		for (let x = 0; x < lengthx; x++) {
+			octavesarray[y].push([]);
+			combined[y].push(0);
+			let combosum = 0
+			for (let octave = 0; octave < octaves; octave++) {
+				octavesarray[y][x].push([]);
+				let steps = 2**octave;
+				let stepsizey = Math.floor(lengthy/steps);
+				let stepsizex = Math.floor(lengthy/steps);
+				let y1 = Math.floor(y/stepsizex)*stepsizex;
+				let x1 = Math.floor(x/stepsizex)*stepsizex;
+				let y2 = null;
+				let x2 = null;
+				if (y1+stepsizey < lengthy) {
+					y2 = y1+stepsizey;
 					}
 				else {
-					cumulativeoctiveratio = octaveratio + metaoctaveratio*(1-octaveratio);
-					octavecombination[y][x] = (cumulativeoctiveratio-microvariance)*octavecombination[y][x] + (1-cumulativeoctiveratio+microvariance)*octavesarray[octave][y][x];
+					y2 = y1;
 					}
+				if (x1+stepsizex < lengthx) {
+					x2 = x1+stepsizex;
+					}
+				else {
+					x2 = x1;
+					}
+				// For linear interpolation
+				// Determine how far into the step this current coordinate is
+				let stepdepthy = (y - y1)/stepsizey;
+				let stepdepthx = (x - x1)/stepsizex;
+				let value1 = (1 - stepdepthx)*randoms[y1][x1] + stepdepthx*randoms[y1][x2];
+				let value2 = (1 - stepdepthx)*randoms[y2][x1] + stepdepthx*randoms[y2][x2];
+				// If we're on the same y, just return the interpolated x value
+				// Otherwise, return the interpolated y value between the two interpolated x values
+				let valuefinal = stepdepthy * (value2-value1) + value1;
+				
+				octavesarray[y][x][octave] = valuefinal;
+				combined[y][x] += (1/steps)*valuefinal;
+				combosum += (1/steps)
 				}
+			combined[y][x] = combined[y][x]/combosum;
+			combined[y][x] = (1-micronoise)*combined[y][x] + micronoise*Math.random();
+			
 			}
 		}
-	return octavecombination
-}
-
-function blur(array) {
-let newarray = []
-	for (let y = 0; y < array.length; y++) {
-	newarray.push([])
-		for (let x = 0; x < array[y].length; x++) {
-		newarray[y].push([])
-			if ((y-1 >= 0) && (x-1 >= 0) && (y+1 < array.length) && (x+1 < array[y].length)) {
-				newarray[y][x] = (array[y-1][x-1] + array[y][x-1] + array[y+1][x-1] + array[y-1][x] + array[y][x] + array[y+1][x] + array[y-1][x+1] + array[y][x+1] + array[y+1][x+1])/9
-				}
-			else {
-				newarray[y][x] = array[y][x]
-				}
-			}
-		}
-		return newarray
-}
-
-let topography = noisegen(objectsx,objectsy,complexity);
-for (let s = 0; s < smoothing; s++) {
-	topography = blur(topography);
+	return combined
 	}
 
+let topography = null;
 function startGame() {
-		let i = 0
-    for (let y = 0; y < objectsx; y++) {
-			for (let x = 0; x < objectsx; x++) {
-				points[i] = new component(pixelwidth, pixelheight, x, y,);
-    		i += 1
-				}
+	topography = noisegen(objectsy, objectsx, octaves, micronoise);
+	let i = 0
+  for (let y = 0; y < objectsy; y++) {
+		for (let x = 0; x < objectsx; x++) {
+			points[i] = new component(pixelheight, pixelwidth, y, x,);
+    	i += 1
 			}
-    myGameArea.start();
+		}
+  myGameArea.start();
 	}
 
-var myGameArea = {
+let myGameArea = {
     canvas : document.createElement("canvas"),
     start : function() {
         this.canvas.width = docwidth;
         this.canvas.height = docheight;
         this.context = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
-        this.interval = setInterval(updateGameArea, 20);
+        this.interval = setInterval(updateGameArea, 100);
     },
     clear : function() {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 }
 
-function component(width, height, x, y) {
+function component(height, width, y, x) {
     this.width = width;
     this.height = height;
 		this.x = x;
     this.y = y; 
-    this.colour = colourGet(this.x,this.y,topography)
+    this.colour = colourGet(this.y,this.x,topography)
     this.update = function(){
         ctx = myGameArea.context;
         ctx.fillStyle = this.colour;
@@ -162,7 +177,6 @@ function component(width, height, x, y) {
     }
 }
 
-let colourindex = 0
 function updateGameArea() {
     myGameArea.clear();
     for (let i = 0; i < points.length; i++) {
