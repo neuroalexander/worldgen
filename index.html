@@ -16,25 +16,11 @@ canvas {
 let	points = []
 const octaves = 20
 const micronoise = 0
-const objects = document.documentElement.clientHeight*document.documentElement.clientWidth;
+const scale = 2
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
-let objectsx = Math.floor(objects/docheight)
-let objectsy = Math.floor(objects/docwidth)
-
-// Control for various sizing/parameter issues
-if (docwidth > 600) {
-	objectsx = Math.floor(objectsx/8)
-	}
-if (docheight > 600) {
-	objecty = Math.floor(objectsy/8)
-	}
-if (Math.floor(objects/docheight) < 1) {
-	objectsx = 1
-	}
-if (Math.floor(objects/docwidth) < 1) {
-	objectsy = 1
-	}
+let objectsy = docheight/scale
+let objectsx = docheight/scale
 const pixelheight = Math.round(docheight/objectsy)
 const pixelwidth = Math.round(docwidth/objectsx)
 
