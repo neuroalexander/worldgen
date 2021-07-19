@@ -5,6 +5,13 @@
 <style>
 canvas {
     background-color: #f1f1f1;
+		margin: auto;
+		position: absolute;
+    top:0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+		padding: 0;
     width: 100%;
     height: 100%;
 }
@@ -15,6 +22,8 @@ canvas {
 
 let	points = []
 const octaves = 20
+const combinationmu = 2
+const combinationsigma = 2.5
 const micronoise = 0
 const scale = 2
 const docheight = document.documentElement.clientHeight;
@@ -27,25 +36,31 @@ const pixelwidth = Math.round(docwidth/objectsx)
 function colourGet(y,x,colourmap) {
 	let colourvalue = colourmap[y][x];
 		if (colourvalue < 0.36) {return 'Teal'}
-		else if (colourvalue < 0.43) {return 'DarkCyan'}
+		else if (colourvalue < 0.42) {return 'DarkCyan'}
 		else if (colourvalue < 0.45) {return 'LightSeaGreen'}
-		else if (colourvalue < 0.46) {return 'MediumAquaMarine'}
+		else if (colourvalue < 0.47) {return 'MediumAquaMarine'}
 		else if (colourvalue < 0.48) {return 'Khaki'}
 		else if (colourvalue < 0.52) {return 'DarkGreen'}
 		else if (colourvalue < 0.56) {return 'Green'}
 		else if (colourvalue < 0.62) {return 'ForestGreen'}
 		else if (colourvalue < 0.66) {return 'OliveDrab'}
 		else if (colourvalue < 0.69) {return 'DarkOliveGreen'}
-		//else if (colourvalue < 0.76) {return 'DarkGrey'}
 		else if (colourvalue < 0.74) {return 'DimGrey'}
-		//else if (colourvalue < 0.78) {return 'Silver'}
-		//else if (colourvalue < 0.79) {return 'LightGrey'}
 		else if (colourvalue < 0.76) {return 'Gainsboro'}
 		else if (colourvalue < 0.77) {return 'WhiteSmoke'}
 		else if (colourvalue < 0.78) {return 'GhostWhite'}
 		else if (colourvalue < 0.9) {return 'Snow'}
 		else if (colourvalue <= 1) {return 'White'}
 	}
+
+function gaussian(x, mu, sigma) {
+	// Return f(x) for a given x value for a defined normal distribution
+	// Distribution is scaled such that f(1) = 1 for mu=1, sigma=1
+	fx = (1/(sigma*((2*Math.PI)**0.5)))*Math.exp(-0.5*(((x-mu)/sigma)**2))
+	fmu = (1/(sigma*((2*Math.PI)**0.5)))*Math.exp(-0.5*(((mu-mu)/sigma)**2))
+	fxscaled = fx/fmu
+	return fx
+}
 
 function noisegen(lengthy, lengthx, octaves, micronoise) {
 	// Length should also be a power of 2
@@ -93,13 +108,13 @@ function noisegen(lengthy, lengthx, octaves, micronoise) {
 					y2 = y1+stepsizey;
 					}
 				else {
-					y2 = y1;
+					y2 = 0;//y1
 					}
 				if (x1+stepsizex < lengthx) {
 					x2 = x1+stepsizex;
 					}
 				else {
-					x2 = x1;
+					x2 = 0;//x1
 					}
 				// For linear interpolation
 				// Determine how far into the step this current coordinate is
@@ -112,12 +127,14 @@ function noisegen(lengthy, lengthx, octaves, micronoise) {
 				let valuefinal = stepdepthy * (value2-value1) + value1;
 				
 				octavesarray[y][x][octave] = valuefinal;
-				combined[y][x] += (1/steps)*valuefinal;
-				combosum += (1/steps)
+				//combined[y][x] += (1/steps)*valuefinal;
+				//combosum += 1/steps
+				let gaussianfactor = gaussian(octave, combinationmu, combinationsigma);
+				combined[y][x] += gaussianfactor*valuefinal;//(1/steps)
+				combosum += gaussianfactor
 				}
 			combined[y][x] = combined[y][x]/combosum;
 			combined[y][x] = (1-micronoise)*combined[y][x] + micronoise*Math.random();
-			
 			}
 		}
 	return combined
