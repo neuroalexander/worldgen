@@ -22,9 +22,9 @@ canvas {
 
 let	points = []
 const octaves = 20
-const combinationmu = 2
-const combinationsigma = 2.5
-const micronoise = 0
+const combinationmu = 2.3 //Larger -> more higher octave components
+const combinationsigma = 2.1 //Smaller -> faster reduction in octave plasticity
+const micronoise = 0.005
 const scale = 2
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
@@ -35,20 +35,20 @@ const pixelwidth = Math.round(docwidth/objectsx)
 
 function colourGet(y,x,colourmap) {
 	let colourvalue = colourmap[y][x];
-		if (colourvalue < 0.36) {return 'Teal'}
+		if (colourvalue < 0.39) {return 'Teal'}
 		else if (colourvalue < 0.42) {return 'DarkCyan'}
 		else if (colourvalue < 0.45) {return 'LightSeaGreen'}
 		else if (colourvalue < 0.47) {return 'MediumAquaMarine'}
 		else if (colourvalue < 0.48) {return 'Khaki'}
 		else if (colourvalue < 0.52) {return 'DarkGreen'}
 		else if (colourvalue < 0.56) {return 'Green'}
-		else if (colourvalue < 0.62) {return 'ForestGreen'}
-		else if (colourvalue < 0.66) {return 'OliveDrab'}
-		else if (colourvalue < 0.69) {return 'DarkOliveGreen'}
-		else if (colourvalue < 0.74) {return 'DimGrey'}
-		else if (colourvalue < 0.76) {return 'Gainsboro'}
-		else if (colourvalue < 0.77) {return 'WhiteSmoke'}
-		else if (colourvalue < 0.78) {return 'GhostWhite'}
+		else if (colourvalue < 0.60) {return 'ForestGreen'}
+		else if (colourvalue < 0.64) {return 'OliveDrab'}
+		else if (colourvalue < 0.67) {return 'DarkOliveGreen'}
+		else if (colourvalue < 0.72) {return 'DimGrey'}
+		else if (colourvalue < 0.74) {return 'Gainsboro'}
+		else if (colourvalue < 0.75) {return 'WhiteSmoke'}
+		else if (colourvalue < 0.76) {return 'GhostWhite'}
 		else if (colourvalue < 0.9) {return 'Snow'}
 		else if (colourvalue <= 1) {return 'White'}
 	}
@@ -62,8 +62,7 @@ function gaussian(x, mu, sigma) {
 	return fx
 }
 
-function noisegen(lengthy, lengthx, octaves, micronoise) {
-	// Length should also be a power of 2
+function scaleOctaves(octaves, lengthy, lengthx) {
 	// This part ensures octave steps don't exceed the array length
 	if (lengthy < (2**octaves)/2) {
 			while (lengthy < (2**octaves)/2) {
@@ -75,7 +74,15 @@ function noisegen(lengthy, lengthx, octaves, micronoise) {
 					octaves = octaves - 1
 					}
 			}
+	return octaves
+	}
 
+function noiseGen(lengthy, lengthx, octaves, micronoise) {
+	// Length should also be a power of 2
+	// This part ensures octave steps don't exceed the array length
+	octaves = scaleOctaves(octaves, lengthy, lengthx)
+	console.log(octaves)
+	
 	// Initialise seed array
 	let randoms = [];
 	for (let y = 0; y < lengthy; y++) {
@@ -142,7 +149,7 @@ function noisegen(lengthy, lengthx, octaves, micronoise) {
 
 let topography = null;
 function startGame() {
-	topography = noisegen(objectsy, objectsx, octaves, micronoise);
+	topography = noiseGen(objectsy, objectsx, octaves, micronoise);
 	let i = 0
   for (let y = 0; y < objectsy; y++) {
 		for (let x = 0; x < objectsx; x++) {
