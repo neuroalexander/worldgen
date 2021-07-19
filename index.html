@@ -5,7 +5,7 @@
 <style>
 canvas {
     background-color: #f1f1f1;
-		margin: auto;
+		margin: 0;
 		position: absolute;
     top:0;
     bottom: 0;
@@ -30,8 +30,8 @@ const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
 let objectsy = docheight/scale
 let objectsx = docheight/scale
-const pixelheight = Math.round(docheight/objectsy)
-const pixelwidth = Math.round(docwidth/objectsx)
+const pixelheight = Math.ceil(docheight/objectsy)
+const pixelwidth = Math.ceil(docwidth/objectsx)
 
 function colourGet(y,x,colourmap) {
 	let colourvalue = colourmap[y][x];
