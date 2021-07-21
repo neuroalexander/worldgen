@@ -27,6 +27,8 @@ const combinationmu = 2.3 //Larger -> more higher octave components
 const combinationsigma = 2.1 //Smaller -> faster reduction in octave plasticity
 const micronoise = 0.005
 const scale = 2
+const edgedrop = true;
+const edgeretentionrate = 1 //Smaller -> faster drop off at edges
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
 let objectsy = docheight/scale
@@ -78,11 +80,22 @@ function scaleOctaves(octaves, lengthy, lengthx) {
 	return octaves
 	}
 
+function dropOff(x, rate) {
+	// Returns f(x) close to 1 for values close to 0 
+	// (i.e. values with small distances to the centre), 
+	// and then rapidly drops off
+	return -((1000)**(x-1))+1
+	}
+
 function noiseGen(lengthy, lengthx, octaves, micronoise) {
 	// Length should also be a power of 2
 	// This part ensures octave steps don't exceed the array length
 	octaves = scaleOctaves(octaves, lengthy, lengthx)
-	console.log(octaves)
+	
+	// Find indices of array centre
+	let ycentre = (lengthy-1)/2
+	let xcentre = (lengthx-1)/2
+	let maxdistancefromcentre = ((xcentre**2) + (ycentre**2))**0.5
 	
 	// Initialise seed array
 	let randoms = [];
@@ -143,6 +156,15 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 				}
 			combined[y][x] = combined[y][x]/combosum;
 			combined[y][x] = (1-micronoise)*combined[y][x] + micronoise*Math.random();
+			
+			if (edgedrop) {
+				let distancefromcentre = (((x-xcentre)**2) + ((y-ycentre)**2))**0.5;
+				drop = dropOff(distancefromcentre/maxdistancefromcentre, edgeretentionrate);
+				if (print) {
+				console.log('Original ', combined[y][x], 'drop: ', drop, 'distancefromcentre: ', distancefromcentre, 'x: ', x, 'y: ', y, 'xcentre: ', xcentre, 'ycentre: ', ycentre, 'maxdistancefromcentre: ', maxdistancefromcentre);}
+				combined[y][x] = combined[y][x]*drop
+				if (print) {console.log('Dropped ', combined[y][x]); print=false}
+				}
 			}
 		}
 	return combined
