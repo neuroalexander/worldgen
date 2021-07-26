@@ -21,22 +21,32 @@ canvas {
 <body onload="startGame()">
 <script>
 
-let	points = []
+
 const octaves = 20
 const combinationmu = 1.9//1.7 + Math.random() //Larger -> more higher octave components
 const combinationsigma = 2.3 //Smaller -> faster reduction in octave plasticity
 const micronoise = 0.002
-const scale = 2
-const edgedroprate = 0.4 + Math.random()*0.45 //Larger --> more peripheral water (more island-like)
+const scale = 3
+const edgedroprate = 0.68//0.4 + Math.random()*0.45 //Larger --> more peripheral water (more island-like)
+const moisturespread = 10
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
 let objectsy = docheight/scale
 let objectsx = docwidth/scale
 const pixelheight = Math.ceil(docheight/objectsy)
 const pixelwidth = Math.ceil(docwidth/objectsx)
+//objectsy=12
+//objectsx=12
+let	points = [];
+for (let y = 0; y < objectsy; y++) {
+	points[y] = [];
+	for (let x = 0; x < objectsx; x++) {
+		points[y][x] = 0;
+		}
+	}
 
-function colourGet(y,x,colourmap) {
-	let colourvalue = colourmap[y][x];
+function colourGet(colourvalue) {
+	//let colourvalue = colourmap[y][x];
 		if (colourvalue < 0.39) {return 'Teal'}
 		else if (colourvalue < 0.42) {return 'DarkCyan'}
 		else if (colourvalue < 0.45) {return 'LightSeaGreen'}
@@ -45,8 +55,8 @@ function colourGet(y,x,colourmap) {
 		else if (colourvalue < 0.52) {return 'DarkGreen'}
 		else if (colourvalue < 0.56) {return 'Green'}
 		else if (colourvalue < 0.60) {return 'ForestGreen'}
-		else if (colourvalue < 0.64) {return 'OliveDrab'}
-		else if (colourvalue < 0.67) {return 'DarkOliveGreen'}
+		else if (colourvalue < 0.65) {return 'OliveDrab'}
+		else if (colourvalue < 0.68) {return 'DarkOliveGreen'}
 		else if (colourvalue < 0.72) {return 'DimGrey'}
 		else if (colourvalue < 0.74) {return 'Gainsboro'}
 		else if (colourvalue < 0.75) {return 'WhiteSmoke'}
@@ -72,6 +82,30 @@ function dropOff(x, rate) {
 	logtenrate = Math.log(rate) / Math.log(10)
 	fx = -((x/(10*(logtenrate)))**2)+1
 	return fx
+	}
+
+function blur(y,x,array,amount) {
+	// Will return the average of all the values in kernel of size 'amount' in a given 'array'
+	let value = null;
+	let sum = 0;
+	let count = 0;
+	let yoffmin = Math.floor(y-(amount/2));
+	let yoffmax = Math.ceil(y+(amount/2));
+	let xoffmin  = Math.floor(x-(amount/2));
+	let xoffmax = Math.ceil(x+(amount/2));
+	for (let yoffset = yoffmin; yoffset < yoffmax; yoffset++) {
+			for (let xoffset = xoffmin; xoffset < xoffmax; xoffset++) {
+				if ((xoffset >= 0) && (yoffset >= 0) && (xoffset < array[y].length) && (yoffset < array.length)) {
+					sum += array[yoffset][xoffset];
+					count += 1;
+					}
+				}
+			}
+	
+	if (count == 0) {value = array[y][x]}
+	else {value = sum/count}
+	//if (x==48) {console.log(y,x,'ys',yoffmin,yoffmax,'xs',xoffmin,xoffmax,'val', value)};
+	return value;
 	}
 
 function scaleOctaves(octaves, lengthy, lengthx) {
@@ -106,18 +140,18 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 			randoms[y].push(Math.random());
 			}
 		}
-	//let drops = [];
+	let drops = [];
 	let combinationsum = 0;
 	let octavesarray = [];
 	let combined = [];
 	for (let y = 0; y < lengthy; y++) {
 		octavesarray.push([]);
 		combined.push([]);
-		//drops.push([]);
+		drops.push([]);
 		for (let x = 0; x < lengthx; x++) {
 			octavesarray[y].push([]);
 			combined[y].push(0);
-			//drops.push([]);
+			drops.push([]);
 			let combosum = 0
 			for (let octave = 0; octave < octaves; octave++) {
 				octavesarray[y][x].push([]);
@@ -166,20 +200,29 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 			let proportionfromcentre = distancefromcentre
 			let drop = dropOff(proportionfromcentre, edgedroprate);
 			combined[y][x] = combined[y][x]*drop
-			//drops[y][x] = drop
+			if (combined[y][x] < 0) {combined[y][x] = 0}
+			drops[y][x] = drop
+			if (drops[y][x] < 0) {drops[y][x] = 0}
 			}
 		}
-	return combined//drops
+	return combined
 	}
 
 let topography = null;
+let watermap = [];
+let moisturemap = [];
+
 function startGame() {
+	// Do all the initial creation
 	topography = noiseGen(objectsy, objectsx, octaves, micronoise);
-	let i = 0
+	for (let y = 0; y < objectsy; y++) {
+		watermap[y] = topography[y].map(item => 0+(item <0.47));
+		moisturemap[y] = []
+		}
   for (let y = 0; y < objectsy; y++) {
 		for (let x = 0; x < objectsx; x++) {
-			points[i] = new component(pixelheight, pixelwidth, y, x,);
-    	i += 1
+			moisturemap[y][x] = blur(y,x,watermap,moisturespread)//watermap[y][x]
+			points[y][x] = new component(pixelheight, pixelwidth, y, x, topography[y][x], moisturemap[y][x]);
 			}
 		}
   myGameArea.start();
@@ -192,20 +235,24 @@ let myGameArea = {
         this.canvas.height = docheight;
         this.context = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
-        this.interval = setInterval(updateGameArea, 200);
+        this.interval = setInterval(updateGameArea, 100);
     },
     clear : function() {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 }
 
-function component(height, width, y, x) {
+function component(height, width, y, x, elevation, moisture) {
     this.width = width;
     this.height = height;
 		this.x = x;
     this.y = y; 
-    this.colour = colourGet(this.y,this.x,topography)
+		this.elevation = elevation
+		this.moisture = moisture
+		this.temp = 0
+    this.colour = 'DarkRed'
     this.update = function(){
+				this.colour = colourGet(this.elevation)//`rgb(${256*this.moisture},${256*this.moisture},${256*this.moisture})`//colourGet(this.elevation)
         ctx = myGameArea.context;
         ctx.fillStyle = this.colour;
         ctx.fillRect(this.x*pixelwidth, this.y*pixelheight, this.width, this.height);
@@ -213,11 +260,13 @@ function component(height, width, y, x) {
 }
 
 function updateGameArea() {
-    myGameArea.clear();
-    for (let i = 0; i < points.length; i++) {
-      points[i].update();
-    }
-}
+	myGameArea.clear();
+	for (let y = 0; y < objectsy; y++) {
+		for (let x = 0; x < objectsx; x++) {
+		points[y][x].update()
+			}
+		}
+	}
 </script>
 </body>
 </html>
