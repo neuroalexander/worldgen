@@ -23,16 +23,15 @@ canvas {
 
 let	points = []
 const octaves = 20
-const combinationmu = 2.3 //Larger -> more higher octave components
-const combinationsigma = 2.1 //Smaller -> faster reduction in octave plasticity
-const micronoise = 0.005
-const scale = 2
-const edgedrop = true;
-const edgeretentionrate = 1 //Smaller -> faster drop off at edges
+const combinationmu = 1.9//1.7 + Math.random() //Larger -> more higher octave components
+const combinationsigma = 2.3 //Smaller -> faster reduction in octave plasticity
+const micronoise = 0.002
+const scale = 1
+const edgedroprate = 0.4 + Math.random()*0.45 //Larger --> more peripheral water (more island-like)
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
 let objectsy = docheight/scale
-let objectsx = docheight/scale
+let objectsx = docwidth/scale
 const pixelheight = Math.ceil(docheight/objectsy)
 const pixelwidth = Math.ceil(docwidth/objectsx)
 
@@ -65,6 +64,16 @@ function gaussian(x, mu, sigma) {
 	return fx
 }
 
+function dropOff(x, rate) {
+	// Returns f(x) close to 1 for values close to 0 
+	// (i.e. values with small distances to the centre), 
+	// and then rapidly drops off
+	//return -((1000000**(10**rate))**(x-1))+1
+	logtenrate = Math.log(rate) / Math.log(10)
+	fx = -((x/(10*(logtenrate)))**2)+1
+	return fx
+	}
+
 function scaleOctaves(octaves, lengthy, lengthx) {
 	// This part ensures octave steps don't exceed the array length
 	if (lengthy < (2**octaves)/2) {
@@ -80,13 +89,6 @@ function scaleOctaves(octaves, lengthy, lengthx) {
 	return octaves
 	}
 
-function dropOff(x, rate) {
-	// Returns f(x) close to 1 for values close to 0 
-	// (i.e. values with small distances to the centre), 
-	// and then rapidly drops off
-	return -((1000)**(x-1))+1
-	}
-
 function noiseGen(lengthy, lengthx, octaves, micronoise) {
 	// Length should also be a power of 2
 	// This part ensures octave steps don't exceed the array length
@@ -95,7 +97,6 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 	// Find indices of array centre
 	let ycentre = (lengthy-1)/2
 	let xcentre = (lengthx-1)/2
-	let maxdistancefromcentre = ((xcentre**2) + (ycentre**2))**0.5
 	
 	// Initialise seed array
 	let randoms = [];
@@ -105,16 +106,18 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 			randoms[y].push(Math.random());
 			}
 		}
-
+	//let drops = [];
 	let combinationsum = 0;
 	let octavesarray = [];
 	let combined = [];
 	for (let y = 0; y < lengthy; y++) {
 		octavesarray.push([]);
 		combined.push([]);
+		//drops.push([]);
 		for (let x = 0; x < lengthx; x++) {
 			octavesarray[y].push([]);
 			combined[y].push(0);
+			//drops.push([]);
 			let combosum = 0
 			for (let octave = 0; octave < octaves; octave++) {
 				octavesarray[y][x].push([]);
@@ -147,27 +150,26 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 				// Otherwise, return the interpolated y value between the two interpolated x values
 				let valuefinal = stepdepthy * (value2-value1) + value1;
 				
+				// Combine octaves
 				octavesarray[y][x][octave] = valuefinal;
-				//combined[y][x] += (1/steps)*valuefinal;
-				//combosum += 1/steps
 				let gaussianfactor = gaussian(octave, combinationmu, combinationsigma);
 				combined[y][x] += gaussianfactor*valuefinal;//(1/steps)
 				combosum += gaussianfactor
 				}
+			
+			// Normalise combined value, apply micronoise
 			combined[y][x] = combined[y][x]/combosum;
 			combined[y][x] = (1-micronoise)*combined[y][x] + micronoise*Math.random();
 			
-			if (edgedrop) {
-				let distancefromcentre = (((x-xcentre)**2) + ((y-ycentre)**2))**0.5;
-				drop = dropOff(distancefromcentre/maxdistancefromcentre, edgeretentionrate);
-				if (print) {
-				console.log('Original ', combined[y][x], 'drop: ', drop, 'distancefromcentre: ', distancefromcentre, 'x: ', x, 'y: ', y, 'xcentre: ', xcentre, 'ycentre: ', ycentre, 'maxdistancefromcentre: ', maxdistancefromcentre);}
-				combined[y][x] = combined[y][x]*drop
-				if (print) {console.log('Dropped ', combined[y][x]); print=false}
-				}
+			// Apply edge drop off
+			let distancefromcentre = ((((x-xcentre)/xcentre)**2) + (((y-ycentre)/ycentre)**2))**0.5;
+			let proportionfromcentre = distancefromcentre
+			let drop = dropOff(proportionfromcentre, edgedroprate);
+			combined[y][x] = combined[y][x]*drop
+			//drops[y][x] = drop
 			}
 		}
-	return combined
+	return combined//drops
 	}
 
 let topography = null;
@@ -190,7 +192,7 @@ let myGameArea = {
         this.canvas.height = docheight;
         this.context = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
-        this.interval = setInterval(updateGameArea, 100);
+        this.interval = setInterval(updateGameArea, 200);
     },
     clear : function() {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
