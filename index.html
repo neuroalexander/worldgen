@@ -21,22 +21,21 @@ canvas {
 <body onload="startGame()">
 <script>
 
-
 const octaves = 20
-const combinationmu = 1.9//1.7 + Math.random() //Larger -> more higher octave components
+const combinationmu = 1.9//Larger -> more higher octave components
 const combinationsigma = 2.3 //Smaller -> faster reduction in octave plasticity
 const micronoise = 0.002
 const scale = 3
-const edgedroprate = 0.45 + Math.random()*0.35 //Larger --> more peripheral water (more island-like)
-const moisturespread = 10
+const edgedroprate = 0.45 + Math.random()*0.35 //Larger -> more peripheral water (more island-like)
+const moisturediffuseness = 100 //Larger -> more diffuse spread of moisture
+const latitudesigma = 0.3*edgedroprate//0.18
+const waterlevel = 0.47;
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
 let objectsy = docheight/scale
 let objectsx = docwidth/scale
 const pixelheight = Math.ceil(docheight/objectsy)
 const pixelwidth = Math.ceil(docwidth/objectsx)
-//objectsy=12
-//objectsx=12
 let	points = [];
 for (let y = 0; y < objectsy; y++) {
 	points[y] = [];
@@ -44,34 +43,76 @@ for (let y = 0; y < objectsy; y++) {
 		points[y][x] = 0;
 		}
 	}
+	
+function component(height, width, y, x, elevation, moisture, latitude) {
+    this.width = width;
+    this.height = height;
+		this.x = x;
+    this.y = y; 
+		this.elevation = elevation
+		this.moisture = moisture
+		this.latitude = latitude
+		this.temp = 0
+    this.colour = 'DarkRed'
+    this.update = function(){
+				this.colour = colourGet(this.elevation, this.moisture, this.latitude, this.temp, waterlevel)
+        ctx = myGameArea.context;
+        ctx.fillStyle = this.colour;
+        ctx.fillRect(this.x*pixelwidth, this.y*pixelheight, this.width, this.height);
+    }
+}
 
-function colourGet(colourvalue) {
-	//let colourvalue = colourmap[y][x];
-		if (colourvalue < 0.39) {return 'Teal'}
-		else if (colourvalue < 0.42) {return 'DarkCyan'}
-		else if (colourvalue < 0.45) {return 'LightSeaGreen'}
-		else if (colourvalue < 0.47) {return 'MediumAquaMarine'}
-		else if (colourvalue < 0.48) {return 'Khaki'}
-		else if (colourvalue < 0.52) {return 'DarkGreen'}
-		else if (colourvalue < 0.56) {return 'Green'}
-		else if (colourvalue < 0.60) {return 'ForestGreen'}
-		else if (colourvalue < 0.65) {return 'OliveDrab'}
-		else if (colourvalue < 0.68) {return 'DarkOliveGreen'}
-		else if (colourvalue < 0.72) {return 'DimGrey'}
-		else if (colourvalue < 0.74) {return 'Gainsboro'}
-		else if (colourvalue < 0.75) {return 'WhiteSmoke'}
-		else if (colourvalue < 0.76) {return 'GhostWhite'}
-		else if (colourvalue < 0.9) {return 'Snow'}
-		else if (colourvalue <= 1) {return 'White'}
+function colourGet(elevation, moisture, latitude, temp, waterlevel) {
+	let output = 0;
+		let green = 0;
+		let red = 0;
+		let blue = 0;
+		let brightness = 0;
+		let logelevation = (Math.log10(elevation)+1 < 0 ? 0 : Math.log10(elevation)+1)
+		let logmoisture = (Math.log10(moisture)+1 < 0 ? 0 : Math.log10(moisture)+1)
+		let loglatitude = (Math.log10(latitude)+1 < 0 ? 0 : Math.log10(latitude)+1)
+		let logtemp = (Math.log10(temp)+1 < 0 ? 0 : Math.log10(temp)+1)
+		temp = 0.7*latitude + 0.3*(1-elevation)
+		
+		if (temp < 0.15 && moisture > 0.05) {
+			if (elevation < 0.35) {return 'Teal'}
+			else if (elevation < 0.38) {return 'DarkCyan'}
+			else if (elevation < 0.41) {return 'LightSeaGreen'}
+			else if (elevation < 0.43) {return 'MediumAquaMarine'}
+			else if (elevation < 0.55) {return 'Gainsboro'}
+			else if (elevation < 0.6) {return 'WhiteSmoke'}
+			else if (elevation <= 1) {return 'AliceBlue'}
+		}
+		if (elevation < waterlevel-0.08) {return 'Teal'}
+		else if (elevation < waterlevel-0.05) {return 'DarkCyan'}
+		else if (elevation < waterlevel-0.02) {return 'LightSeaGreen'}
+		else if (elevation < waterlevel) {return 'MediumAquaMarine'}
+		else if (elevation < waterlevel+0.01) {return 'Khaki'}
+		else if (elevation < 0.52) {output = [(0.9*0 + 0.1*(1-moisture)*255)*(1-0.5*latitude)*(1-temp/3), (0.9*100 + 0.1*temp*255)*(1-0.5*latitude + 0.5*moisture)*(1-temp/3), 0*(1-0.5*latitude*255)*(1-temp/3)]}//'DarkGreen'}
+		else if (elevation < 0.56) {output = [(0.9*0 + 0.1*(1-moisture)*255)*(1-0.5*latitude)*(1-temp/3), (0.9*128 + 0.1*temp*255)*(1-0.5*latitude + 0.5*moisture)*(1-temp/3), 0*(1-0.5*latitude*255)*(1-temp/3)]}//'Green'}
+		else if (elevation < 0.60) {output = [(0.9*34 + 0.1*(1-moisture)*255)*(1-0.5*latitude)*(1-temp/3), (0.9*139 + 0.1*temp*255)*(1-0.5*latitude + 0.5*moisture)*(1-temp/3), 34*(1-0.5*latitude*255)*(1-temp/3)]}//'ForestGreen'}
+		else if (elevation < 0.65) {output = [(0.8*107 + 0.2*(1-latitude))*(1-temp/2), (0.8*142 + 0.1*(temp)*255 + 0.1*(moisture)*255)*(1-temp/2), 35*(1-temp/2)]}//'OliveDrab'}
+		else if (elevation < 0.68) {output = [(0.8*85 + 0.2*(1-latitude))*(1-temp/2), (0.8*107 + 0.1*(temp)*255 + 0.1*(moisture)*255)*(1-temp/2), 47*(1-temp/2)]}//'DarkOliveGreen'}
+		else if (elevation < 0.72) {output = [105, 105, 105]}//'DimGrey'}
+		else if (elevation < 0.74) {output = [220, 220, 220]}//'Gainsboro'}
+		else if (elevation < 0.75) {output = [245, 245, 245]}//'WhiteSmoke'}
+		else if (elevation < 0.76) {output = [248, 248, 255]}//'GhostWhite'}
+		else if (elevation < 0.9) {output = [255, 250, 250]}//'Snow'}
+		else if (elevation <= 1) {output = [255, 255, 255]}//'White'}
+	
+	red = Math.round(output[0])
+	green = Math.round(output[1])
+	blue = Math.round(output[2])
+	return `rgb(${red},${green},${blue}`	
 	}
 
 function gaussian(x, mu, sigma) {
 	// Return f(x) for a given x value for a defined normal distribution
-	// Distribution is scaled such that f(1) = 1 for mu=1, sigma=1
+	// Distribution is scaled such that f(1) = 1 for mu=0, sigma=1
 	fx = (1/(sigma*((2*Math.PI)**0.5)))*Math.exp(-0.5*(((x-mu)/sigma)**2))
 	fmu = (1/(sigma*((2*Math.PI)**0.5)))*Math.exp(-0.5*(((mu-mu)/sigma)**2))
 	fxscaled = fx/fmu
-	return fx
+	return fxscaled
 }
 
 function dropOff(x, rate) {
@@ -90,11 +131,11 @@ function blur(y,x,array,amount) {
 	let sum = 0;
 	let count = 0;
 	let yoffmin = Math.floor(y-(amount/2));
-	let yoffmax = Math.ceil(y+(amount/2));
+	let yoffmax = Math.floor(y+(amount/2));
 	let xoffmin  = Math.floor(x-(amount/2));
-	let xoffmax = Math.ceil(x+(amount/2));
-	for (let yoffset = yoffmin; yoffset < yoffmax; yoffset++) {
-			for (let xoffset = xoffmin; xoffset < xoffmax; xoffset++) {
+	let xoffmax = Math.floor(x+(amount/2));
+	for (let yoffset = yoffmin; yoffset <= yoffmax+1; yoffset++) {
+			for (let xoffset = xoffmin; xoffset <= xoffmax+1; xoffset++) {
 				if ((xoffset >= 0) && (yoffset >= 0) && (xoffset < array[y].length) && (yoffset < array.length)) {
 					sum += array[yoffset][xoffset];
 					count += 1;
@@ -144,14 +185,16 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 	let combinationsum = 0;
 	let octavesarray = [];
 	let combined = [];
+	let latitudes = [];
 	for (let y = 0; y < lengthy; y++) {
 		octavesarray.push([]);
 		combined.push([]);
 		drops.push([]);
+		latitudes.push(gaussian(y/lengthy, 0.5, latitudesigma))
 		for (let x = 0; x < lengthx; x++) {
 			octavesarray[y].push([]);
 			combined[y].push(0);
-			drops.push([]);
+			drops[y].push([]);
 			let combosum = 0
 			for (let octave = 0; octave < octaves; octave++) {
 				octavesarray[y][x].push([]);
@@ -205,24 +248,29 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 			if (drops[y][x] < 0) {drops[y][x] = 0}
 			}
 		}
-	return combined
+	return [combined, drops, latitudes]
 	}
 
 let topography = null;
+let drops = null;
+let latitudes = null;
 let watermap = [];
 let moisturemap = [];
 
 function startGame() {
 	// Do all the initial creation
-	topography = noiseGen(objectsy, objectsx, octaves, micronoise);
+	output = noiseGen(objectsy, objectsx, octaves, micronoise);
+	topography = output[0]
+	drops = output[1]
+	latitudes = output[2]
 	for (let y = 0; y < objectsy; y++) {
 		watermap[y] = topography[y].map(item => 0+(item <0.47));
 		moisturemap[y] = []
 		}
   for (let y = 0; y < objectsy; y++) {
 		for (let x = 0; x < objectsx; x++) {
-			moisturemap[y][x] = blur(y,x,watermap,moisturespread)//watermap[y][x]
-			points[y][x] = new component(pixelheight, pixelwidth, y, x, topography[y][x], moisturemap[y][x]);
+			moisturemap[y][x] = blur(y,x,watermap,moisturediffuseness)//watermap[y][x]
+			points[y][x] = new component(pixelheight, pixelwidth, y, x, topography[y][x], moisturemap[y][x], latitudes[y]);
 			}
 		}
   myGameArea.start();
@@ -242,22 +290,6 @@ let myGameArea = {
     }
 }
 
-function component(height, width, y, x, elevation, moisture) {
-    this.width = width;
-    this.height = height;
-		this.x = x;
-    this.y = y; 
-		this.elevation = elevation
-		this.moisture = moisture
-		this.temp = 0
-    this.colour = 'DarkRed'
-    this.update = function(){
-				this.colour = colourGet(this.elevation)//`rgb(${256*this.moisture},${256*this.moisture},${256*this.moisture})`//colourGet(this.elevation)
-        ctx = myGameArea.context;
-        ctx.fillStyle = this.colour;
-        ctx.fillRect(this.x*pixelwidth, this.y*pixelheight, this.width, this.height);
-    }
-}
 
 function updateGameArea() {
 	myGameArea.clear();
