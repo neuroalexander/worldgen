@@ -26,8 +26,8 @@ const combinationmu = 1.9//Larger -> more higher octave components
 const combinationsigma = 2.3 //Smaller -> faster reduction in octave plasticity
 const micronoise = 0.002
 const scale = 3
-const edgedroprate = 0.5 + Math.random()*0.3 //Larger -> more peripheral water (more island-like)
-const humidityspread = 20 //Larger -> more diffuse spread of humidity
+const edgedroprate = 0.4 + Math.random()*0.3 //Larger -> more peripheral water (more island-like)
+const moisturespread = 20 //Larger -> more diffuse spread of humidity
 const latitudedroprate = 0.92//0.3*edgedroprate//0.18
 const waterlevel = 0.47;
 let maptype = 'normal'
@@ -56,14 +56,14 @@ function component(height, width, y, x, elevation, humidity, latitude) {
 		this.temp = 0
     this.colour = 'DarkRed'
     this.update = function(){
-				this.colour = colourGet(this.elevation, this.humidity, this.latitude, this.temp, waterlevel, maptype)
+				this.colour = colourGet(this.elevation, this.humidity, this.latitude, this.temp, waterlevel, drops[this.y][this.x], maptype)
         ctx = myGameArea.context;
         ctx.fillStyle = this.colour;
         ctx.fillRect(this.x*pixelwidth, this.y*pixelheight, this.width, this.height);
     }
 }
 
-function colourGet(elevation, humidity, latitude, temp, waterlevel, type) {
+function colourGet(elevation, humidity, latitude, temp, waterlevel, dropoff, type) {
 		let output = 0;
 		let green = 0;
 		let red = 0;
@@ -72,40 +72,59 @@ function colourGet(elevation, humidity, latitude, temp, waterlevel, type) {
 		let logelevation = (Math.log10(elevation)+1 < 0 ? 0 : Math.log10(elevation)+1)
 		let loghumidity = (Math.log10(humidity)+1 < 0 ? 0 : Math.log10(humidity)+1)
 		let loglatitude = (Math.log10(latitude)+1 < 0 ? 0 : Math.log10(latitude)+1)
+		let landelevation = elevation < waterlevel - 0.08 ? waterlevel - 0.08 : elevation
 		let logtemp = (Math.log10(temp)+1 < 0 ? 0 : Math.log10(temp)+1)
-		temp = 0.6*(1-logelevation) + 0.4*latitude
-		temp = 0.5*temp + 0.5*((1-logelevation)**2)
+		temp = 0.8*(1-landelevation/(1-(waterlevel - 0.08))) + 0.2*latitude// + 0.05*(1-humidity)
+		//temp = 0.5*temp + 0.5*((1-logelevation)**2)
 		if (type == 'humidity') {return `rgb(${255*humidity},${255*humidity},${255*humidity}`}
 		else if (type == 'temp') {return `rgb(${255*temp},${255*temp},${255*temp}`}
 		else if (type == 'latitude') {return `rgb(${255*latitude},${255*latitude},${255*latitude}`}
-		else if (type == 'elevation') {return `rgb(${255*elevation},${255*elevation},${255*elevation}`}
+		else if (type == 'dropoff') {return `rgb(${255*dropoff},${255*dropoff},${255*dropoff}`}
+		else if (type == 'elevation') {return `rgb(${255*landelevation},${255*landelevation},${255*landelevation}`}
 		else {}
 		
-		//if (latitude < 0.15 && humidity < 0.02) {
 		//	if (elevation < 0.35) {return 'Teal'}
 		//	else if (elevation < 0.38) {return 'DarkCyan'}
 		//	else if (elevation < 0.41) {return 'LightSeaGreen'}
 		//	else if (elevation < 0.43) {return 'MediumAquaMarine'}
-		//	else if (elevation < 0.55) {return 'Gainsboro'}
-		//	else if (elevation < 0.6) {return 'WhiteSmoke'}
-		//	else if (elevation <= 1) {return 'AliceBlue'}
-		//}
+		if (temp < 0.01) {return 'White'}
+		else if (temp < 0.02) {return 'Ghostwhite'}
+		else if (temp < 0.06) {return 'WhiteSmoke'}
+		else if (temp < 0.07) {return 'Gainsboro'}
+		else if (temp < 0.08 && elevation < waterlevel) {return 'LightSeaGreen'}
+		else if (temp < 0.1 && elevation < waterlevel) {return 'DarkCyan'}
+		
 		if (elevation < waterlevel-0.08) {return 'Teal'}
 		else if (elevation < waterlevel-0.05) {return 'DarkCyan'}
 		else if (elevation < waterlevel-0.02) {return 'LightSeaGreen'}
 		else if (elevation < waterlevel) {return 'MediumAquaMarine'}
 		else if (elevation < waterlevel+0.01) {return 'Khaki'}
-		else if (elevation < 0.52) {output = [0.8*(0.9*0 + 0.1*(1-humidity)*255) + 0.2*(1-humidity)*255, 0.6*(0.8*100 + 0.2*humidity*255) + 0.4*(1-humidity)*255, 0]}//'DarkGreen'}
-		else if (elevation < 0.56) {output = [0.7*(0.85*0 + 0.15*(1-humidity)*255) + 0.3*(1-humidity)*255, 0.6*(0.8*128 + 0.2*humidity*255) + 0.4*(1-humidity)*255, 0]}//'Green'}
-		else if (elevation < 0.60) {output = [0.6*(0.8*34 + 0.2*(1-humidity)*255) + 0.4*(1-humidity)*255, 0.6*(0.8*139 + 0.2*humidity*255) + 0.4*(1-humidity)*255, 0.6*34 + 0.4*(1-humidity)*255]}//'ForestGreen'}
-		else if (elevation < 0.65) {output = [0.8*(0.9*107 + 0.1*(1-humidity)*255) + 0.2*(1-humidity)*255, 0.9*(0.9*142 + 0.1*(humidity)*255) + 0.1*(1-humidity)*255, 0.9*35 + 0.1*(1-humidity)*255]}//'OliveDrab'}
-		else if (elevation < 0.68) {output = [0.8*(0.9*85 + 0.1*(1-humidity)*255) + 0.2*(1-humidity)*255, 0.9*(0.9*107 + 0.1*(humidity)*255) + 0.1*(1-humidity)*255, 0.9*47 + 0.1*(1-humidity)*255]}//'DarkOliveGreen'}
-		else if (elevation < 0.72) {output = [105, 105, 105]}//'DimGrey'}
+		else if (elevation < 0.52) {output = [
+		0.8*(0.9*0 + 0.1*(1-humidity)*255) + 0.2*(1-humidity)*255, 
+		0.6*(0.8*100 + 0.2*humidity*255) + 0.4*(1-humidity)*255, 
+		0.9*0 + 0.1*(1-humidity)*255]}//'DarkGreen'}
+		else if (elevation < 0.56) {output = [
+		0.7*(0.85*0 + 0.15*(1-humidity)*255) + 0.3*(1-humidity)*255, 
+		0.6*(0.8*128 + 0.2*humidity*255) + 0.4*(1-humidity)*255, 
+		0.8*0 + 0.2*(1-humidity)*255]}//'Green'}
+		else if (elevation < 0.60) {output = [
+		0.6*(0.8*34 + 0.2*(1-humidity)*255) + 0.4*(1-humidity)*255, 
+		0.6*(0.8*139 + 0.2*humidity*255) + 0.4*(1-humidity)*255, 
+		0.7*34 + 0.3*(1-humidity)*255]}//'ForestGreen'}
+		else if (elevation < 0.64) {output = [
+		0.8*(0.9*107 + 0.1*(1-humidity)*255) + 0.2*(1-humidity)*255, 
+		0.9*(0.9*142 + 0.1*(humidity)*255) + 0.1*(1-humidity)*255, 
+		0.9*35 + 0.1*(1-humidity)*255]}//'OliveDrab'}
+		else if (elevation < 0.67) {output = [
+		0.8*(0.9*85 + 0.1*(1-humidity)*255) + 0.2*(1-humidity)*255, 
+		0.9*(0.9*107 + 0.1*(humidity)*255) + 0.1*(1-humidity)*255, 
+		0.9*47 + 0.1*(1-humidity)*255]}//'DarkOliveGreen'}
+		else if (elevation < 0.7) {output = [105, 105, 105]}//'DimGrey'}
 		else if (elevation < 0.74) {output = [220, 220, 220]}//'Gainsboro'}
-		else if (elevation < 0.75) {output = [245, 245, 245]}//'WhiteSmoke'}
-		else if (elevation < 0.76) {output = [248, 248, 255]}//'GhostWhite'}
-		else if (elevation < 0.9) {output = [255, 250, 250]}//'Snow'}
-		else if (elevation <= 1) {output = [255, 255, 255]}//'White'}
+		//else if (elevation < 0.75) {output = [245, 245, 245]}//'WhiteSmoke'}
+		//else if (elevation < 0.76) {output = [248, 248, 255]}//'GhostWhite'}
+		//else if (elevation < 0.9) {output = [255, 250, 250]}//'Snow'}
+		//else if (elevation <= 1) {output = [255, 255, 255]}//'White'}
 	
 	red = Math.round(output[0])
 	green = Math.round(output[1])
@@ -126,8 +145,15 @@ function dropOff(x, rate) {
 	// Returns f(x) close to 1 for values close to 0 
 	// (i.e. values with small distances to the centre), 
 	// and then rapidly drops off
-	//return -((1000000**(10**rate))**(x-1))+1
 	fx = -((x/(10*(Math.log10(rate))))**2)+1
+	//fx = (1 - (x**2))**0.5
+	return fx
+	}
+	
+function circular(x) {
+	// f(x) decays according to circular function
+	// For values from 0 to 1 only
+	fx = (1 - (x**2))**0.5
 	return fx
 	}
 
@@ -171,6 +197,9 @@ function scaleOctaves(octaves, lengthy, lengthx) {
 	}
 
 function noiseGen(lengthy, lengthx, octaves, micronoise) {
+	//lengthy = Math.floor(lengthy)
+	//lengthx = Math.floor(lengthx)
+	console.log(lengthy, lengthx)
 	// Length should also be a power of 2
 	// This part ensures octave steps don't exceed the array length
 	octaves = scaleOctaves(octaves, lengthy, lengthx)
@@ -196,7 +225,7 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 		octavesarray.push([]);
 		combined.push([]);
 		drops.push([]);
-		latitudes.push(dropOff((y/lengthy)-0.5, latitudedroprate))
+		latitudes.push(dropOff((y/lengthy)-0.5, latitudedroprate))//circular((2*y/lengthy)-1))//-Math.abs(2*(y/lengthy) - 1) + 1)//dropOff((y/lengthy)-0.5, latitudedroprate))
 		for (let x = 0; x < lengthx; x++) {
 			octavesarray[y].push([]);
 			combined[y].push(0);
@@ -246,12 +275,14 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 			
 			// Apply edge drop off
 			let distancefromcentre = ((((x-xcentre)/xcentre)**2) + (((y-ycentre)/ycentre)**2))**0.5;
-			let proportionfromcentre = distancefromcentre
-			let drop = dropOff(proportionfromcentre, edgedroprate);
-			combined[y][x] = combined[y][x]*drop
-			if (combined[y][x] < 0) {combined[y][x] = 0}
+			let proportionfromcentre = distancefromcentre;
+			if (proportionfromcentre > 1) {proportionfromcentre = 1}
+			let drop = dropOff(proportionfromcentre, edgedroprate)
 			drops[y][x] = drop
 			if (drops[y][x] < 0) {drops[y][x] = 0}
+			combined[y][x] = combined[y][x]*drop//0.5*combined[y][x] + 0.5*drop
+			if (combined[y][x] < 0) {combined[y][x] = 0}
+			
 			}
 		}
 	return [combined, drops, latitudes]
@@ -262,6 +293,7 @@ let drops = null;
 let latitudes = null;
 let watermap = [];
 let humiditymap = [];
+let moisturemap = [];
 
 function startGame() {
 	// Do all the initial creation
@@ -271,13 +303,14 @@ function startGame() {
 	latitudes = output[2] //This id 1D
 	for (let y = 0; y < objectsy; y++) {
 		watermap[y] = topography[y].map(item => 0+(item <0.47));
+		moisturemap[y] = []
 		humiditymap[y] = []
 		}
   for (let y = 0; y < objectsy; y++) {
 		for (let x = 0; x < objectsx; x++) {
-			humiditymap[y][x] = blur(y,x,watermap,humidityspread)//watermap[y][x]
-			humiditymap[y][x] = 0.55*humiditymap[y][x] + 0.45*latitudes[y]
-			humiditymap[y][x] = 0.8*humiditymap[y][x] + 0.2*latitudes[y]
+			moisturemap[y][x] = blur(y,x,watermap,moisturespread)//watermap[y][x]
+			humiditymap[y][x] = 0.6*moisturemap[y][x] + 0.4*latitudes[y]
+			//humiditymap[y][x] = 0.5*humiditymap[y][x] + 0.5*latitudes[y]
 			points[y][x] = new component(pixelheight, pixelwidth, y, x, topography[y][x], humiditymap[y][x], latitudes[y]);
 			}
 		}
@@ -310,6 +343,7 @@ function updateGameArea() {
 	else if (myGameArea.key && myGameArea.key == 84) {maptype = 'temp';}
 	else if (myGameArea.key && myGameArea.key == 76) {maptype = 'latitude';}
 	else if (myGameArea.key && myGameArea.key == 69) {maptype = 'elevation';}
+	else if (myGameArea.key && myGameArea.key == 68) {maptype = 'dropoff';}
 	else {maptype = 'normal'}
 	for (let y = 0; y < objectsy; y++) {
 		for (let x = 0; x < objectsx; x++) {
