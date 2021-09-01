@@ -21,17 +21,9 @@ canvas {
 <body onload="seedGen(docheight,docwidth);startGame()">
 <script>
 
+// Window parameters
 let scale = 2
 const octaves = 20
-let combinationmu = 2.3 + 0.1*(2/scale)//Larger -> more higher octave components
-let combinationsigma = 2.3 + 0.1*(2/scale)//Smaller -> faster reduction in octave plasticity
-let micronoise = 0//0.001*scale
-const edgedroprate = 0.4 + Math.random()*0.3 //Larger -> more peripheral water (more island-like)
-const moisturespread = 20 //Larger -> more diffuse spread of humidity
-const latitudedroprate = 0.915//0.3*edgedroprate//0.18
-//const latitudesigma = 0.12
-const waterlevel = 0.47;
-let maptype = 'normal'
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
 if (docheight < 500 || docwidth < 500) {scale -= 1}
@@ -39,6 +31,10 @@ let objectsy = docheight/scale
 let objectsx = docwidth/scale
 let pixelheight = Math.ceil(docheight/objectsy)
 let pixelwidth = Math.ceil(docwidth/objectsx)
+let waterlevel = 0.47;
+let maptype = 'normal'
+
+// Generate array
 let	points = [];
 for (let y = 0; y < objectsy; y++) {
 	points[y] = [];
@@ -224,7 +220,6 @@ function noiseGen(seedarray, lengthy, lengthx, octaves, micronoise) {
 			randoms[y].push(seedarray[y][x])
 			}
 		}
-	console.log(randoms[0].length)
 	
 	// Initialise other arrays
 	let drops = [];
@@ -348,33 +343,39 @@ let watermap = [];
 let humiditymap = [];
 let moisturemap = [];
 
+// Initialise generation parameters
+let combinationmu = 0 //Larger -> more higher octave components
+let combinationsigma = 0//Smaller -> faster reduction in octave plasticity
+let micronoise = 0//0.001*scale
+let edgedroprate = 0.4 + Math.random()*0.3 //Larger -> more peripheral water (more island-like)
+let moisturespread = 20 //Larger -> more diffuse spread of humidity
+let latitudedroprate = 0.915//0.3*edgedroprate//0.18
+//const latitudesigma = 0.12
+
 function startGame() {
-	// Do all the initial creation
-	combinationmu = 2.3 + 0.1*(2/scale)//Larger -> more higher octave components
-	combinationsigma = 2.3 + 0.1*(2/scale)//Smaller -> faster reduction in octave plasticity
+	// Set all generation parameters
+	combinationmu = 2.3 + 0.1*(1/scale) - 0.1*(100000/(docwidth*docheight))
+	combinationsigma = 2.3 + 0.1*(1/scale) - 0.1*(100000/(docwidth*docheight))
 	micronoise = 0.001*scale
 	objectsy = docheight/scale
 	objectsx = docwidth/scale
 	pixelheight = Math.ceil(docheight/objectsy)
 	pixelwidth = Math.ceil(docwidth/objectsx)
-	points = [];
-	for (let y = 0; y < objectsy; y++) {
-		points[y] = [];
-		for (let x = 0; x < objectsx; x++) {
-			points[y][x] = 0;
-			}
-		}
+	
+	// Create feature maps
 	output = noiseGen(seed, objectsy, objectsx, octaves, micronoise);
 	topography = output[0]
 	drops = output[1]
 	latitudes = output[2] //This is 1D
 	slopes = slopeGen(topography, objectsy, objectsx, waterlevel);
+	points = [];
 	for (let y = 0; y < objectsy; y++) {
 		watermap[y] = topography[y].map(item => 0+(item <waterlevel));
 		moisturemap[y] = []
 		humiditymap[y] = []
 		}
   for (let y = 0; y < objectsy; y++) {
+		points[y] = [];
 		for (let x = 0; x < objectsx; x++) {
 			moisturemap[y][x] = blur(y,x,watermap,moisturespread)//watermap[y][x]
 			humiditymap[y][x] = 0.55*moisturemap[y][x] + 0.45*latitudes[y]
