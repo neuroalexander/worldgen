@@ -18,26 +18,27 @@ canvas {
 }
 </style>
 </head>
-<body onload="startGame()">
+<body onload="seedGen(docheight,docwidth);startGame()">
 <script>
 
 const octaves = 20
-const combinationmu = 1.9//Larger -> more higher octave components
+const combinationmu = 2.1//Larger -> more higher octave components
 const combinationsigma = 2.3 //Smaller -> faster reduction in octave plasticity
-const micronoise = 0.002
+const micronoise = 0//0.002
 let scale = 3
 const edgedroprate = 0.4 + Math.random()*0.3 //Larger -> more peripheral water (more island-like)
 const moisturespread = 20 //Larger -> more diffuse spread of humidity
-const latitudedroprate = 0.92//0.3*edgedroprate//0.18
+const latitudedroprate = 0.915//0.3*edgedroprate//0.18
+//const latitudesigma = 0.12
 const waterlevel = 0.47;
-let maptype = 'normal';
+let maptype = 'normal'
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
-if (docheight < 400 || docwidth < 400) {scale -= 1}
-let objectsy = docheight/scale;
-let objectsx = docwidth/scale;
-const pixelheight = Math.ceil(docheight/objectsy);
-const pixelwidth = Math.ceil(docwidth/objectsx);
+if (docheight < 500 || docwidth < 500) {scale -= 1}
+let objectsy = docheight/scale
+let objectsx = docwidth/scale
+let pixelheight = Math.ceil(docheight/objectsy)
+let pixelwidth = Math.ceil(docwidth/objectsx)
 let	points = [];
 for (let y = 0; y < objectsy; y++) {
 	points[y] = [];
@@ -46,60 +47,52 @@ for (let y = 0; y < objectsy; y++) {
 		}
 	}
 	
-function component(height, width, y, x, elevation, humidity, latitude) {
+function component(height, width, y, x, elevation, slope, edgedrop, humidity, latitude, waterlevel) {
     this.width = width;
     this.height = height;
 		this.x = x;
     this.y = y; 
-		this.elevation = elevation
+		this.elevation = elevation;
+		this.slope = slope;
+		this.landmasselevation = elevation < waterlevel - 0.08 ? waterlevel - 0.08 : elevation
+		this.edgedrop = edgedrop
 		this.humidity = humidity
 		this.latitude = latitude
-		this.temp = 0
+		this.temp = 0.8*(1-(this.landmasselevation/(1-(waterlevel - 0.08)))) + 0.2*this.latitude
     this.colour = 'DarkRed'
     this.update = function(){
-				this.colour = colourGet(this.elevation, this.humidity, this.latitude, this.temp, waterlevel, drops[this.y][this.x], maptype)
+				this.colour = colourGet(this.elevation, this.landmasselevation, this.slope, this.edgedrop, this.humidity, this.latitude, this.temp, waterlevel, maptype)
         ctx = myGameArea.context;
         ctx.fillStyle = this.colour;
         ctx.fillRect(this.x*pixelwidth, this.y*pixelheight, this.width, this.height);
     }
 }
 
-function colourGet(elevation, humidity, latitude, temp, waterlevel, dropoff, type) {
+function colourGet(elevation, landmasselevation, slope, edgedrop, humidity, latitude, temp, waterlevel, type) {
 		let output = 0;
 		let green = 0;
 		let red = 0;
 		let blue = 0;
 		let brightness = 0;
-		let logelevation = (Math.log10(elevation)+1 < 0 ? 0 : Math.log10(elevation)+1)
-		let loghumidity = (Math.log10(humidity)+1 < 0 ? 0 : Math.log10(humidity)+1)
-		let loglatitude = (Math.log10(latitude)+1 < 0 ? 0 : Math.log10(latitude)+1)
-		let landelevation = elevation < waterlevel - 0.08 ? waterlevel - 0.08 : elevation
-		let logtemp = (Math.log10(temp)+1 < 0 ? 0 : Math.log10(temp)+1)
-		temp = 0.8*(1-landelevation/(1-(waterlevel - 0.08))) + 0.2*latitude// + 0.05*(1-humidity)
-		//temp = 0.5*temp + 0.5*((1-logelevation)**2)
-		if (type == 'humidity') {return `rgb(${255*humidity},${255*humidity},${255*humidity}`}
-		else if (type == 'temp') {return `rgb(${255*temp},${255*temp},${255*temp}`}
-		else if (type == 'latitude') {return `rgb(${255*latitude},${255*latitude},${255*latitude}`}
-		else if (type == 'dropoff') {return `rgb(${255*dropoff},${255*dropoff},${255*dropoff}`}
-		else if (type == 'elevation') {return `rgb(${255*landelevation},${255*landelevation},${255*landelevation}`}
+		let oceanfloor = false;
+		let slopescaling = 1
+		slope = 1-slope
+
+		// Feature maps
+		if (type == 'humidity') {return `rgb(${255*humidity},${255*humidity},${255*humidity})`}
+		else if (type == 'temp') {return `rgb(${255*temp},${255*temp},${255*temp})`}
+		else if (type == 'latitude') {return `rgb(${255*latitude},${255*latitude},${255*latitude})`}
+		else if (type == 'dropoff') {return `rgb(${255*edgedrop},${255*edgedrop},${255*edgedrop})`}
+		else if (type == 'elevation') {return `rgb(${255*landmasselevation},${255*landmasselevation},${255*landmasselevation})`}
+		else if (type == 'slope') {return `rgb(${255*slope},${255*slope},${255*slope})`}
 		else {}
 		
-		//	if (elevation < 0.35) {return 'Teal'}
-		//	else if (elevation < 0.38) {return 'DarkCyan'}
-		//	else if (elevation < 0.41) {return 'LightSeaGreen'}
-		//	else if (elevation < 0.43) {return 'MediumAquaMarine'}
-		if (temp < 0.01) {return 'White'}
-		else if (temp < 0.02) {return 'Ghostwhite'}
-		else if (temp < 0.06) {return 'WhiteSmoke'}
-		else if (temp < 0.07) {return 'Gainsboro'}
-		else if (temp < 0.08 && elevation < waterlevel) {return 'LightSeaGreen'}
-		else if (temp < 0.1 && elevation < waterlevel) {return 'DarkCyan'}
-		
-		if (elevation < waterlevel-0.08) {return 'Teal'}
-		else if (elevation < waterlevel-0.05) {return 'DarkCyan'}
-		else if (elevation < waterlevel-0.02) {return 'LightSeaGreen'}
-		else if (elevation < waterlevel) {return 'MediumAquaMarine'}
-		else if (elevation < waterlevel+0.01) {return 'Khaki'}
+		// Greenery and land covering
+		if (elevation < waterlevel-0.08) {output = [0, 128, 128]; oceanfloor=true}//'Teal'}
+		else if (elevation < waterlevel-0.05) {output = [0, 139, 139]; oceanfloor=true}//'DarkCyan'
+		else if (elevation < waterlevel-0.02) {output = [32, 178, 170]; oceanfloor=true}//'LightSeaGreen'
+		else if (elevation < waterlevel) {output = [102, 205, 170]; oceanfloor=true}//'MediumAquaMarine'}
+		else if (elevation < waterlevel+0.01) {output = [240, 230, 140]}//'Khaki'}
 		else if (elevation < 0.52) {output = [
 		0.8*(0.9*0 + 0.1*(1-humidity)*255) + 0.2*(1-humidity)*255, 
 		0.6*(0.8*100 + 0.2*humidity*255) + 0.4*(1-humidity)*255, 
@@ -121,16 +114,22 @@ function colourGet(elevation, humidity, latitude, temp, waterlevel, dropoff, typ
 		0.9*(0.9*107 + 0.1*(humidity)*255) + 0.1*(1-humidity)*255, 
 		0.9*47 + 0.1*(1-humidity)*255]}//'DarkOliveGreen'}
 		else if (elevation < 0.7) {output = [105, 105, 105]}//'DimGrey'}
-		else if (elevation < 0.74) {output = [220, 220, 220]}//'Gainsboro'}
-		//else if (elevation < 0.75) {output = [245, 245, 245]}//'WhiteSmoke'}
-		//else if (elevation < 0.76) {output = [248, 248, 255]}//'GhostWhite'}
-		//else if (elevation < 0.9) {output = [255, 250, 250]}//'Snow'}
-		//else if (elevation <= 1) {output = [255, 255, 255]}//'White'}
+		else if (elevation < 0.74) {output = [128, 128, 128]}//'Grey'}
+		else if (elevation < 0.78) {output = [169, 169, 169]}//'DarkGrey'}
+		
+		// Temperature-dependent snow effects
+		if (temp < 0.01) {output = [255, 255, 255]}//'White'
+		else if (temp < 0.02) {output = [248, 248, 255]}//'GhostWhite'
+		else if (temp < 0.03) {output = [245, 245, 245]}//'WhiteSmoke'
+		else if (temp < 0.05) {output = [220, 220, 220]}//'Gainsboro'
+		else if ((temp < 0.06) && (elevation < waterlevel)) {output = [32, 178, 170]; oceanfloor=true}//'LightSeaGreen'
+		else if ((temp < 0.08) && (elevation < waterlevel)) {output = [0, 139, 139]; oceanfloor=true}// 'DarkCyan'
 	
-	red = Math.round(output[0])
-	green = Math.round(output[1])
-	blue = Math.round(output[2])
-	return `rgb(${red},${green},${blue}`	
+	if (oceanfloor) {slopescaling = 0.25}
+	red = Math.round((1-slopescaling)*output[0] + slopescaling*output[0]*slope)
+	green = Math.round((1-slopescaling)*output[1] + slopescaling*output[1]*slope)
+	blue = Math.round((1-slopescaling)*output[2] + slopescaling*output[2]*slope)
+	return `rgb(${red},${green},${blue})`	
 	}
 
 function gaussian(x, mu, sigma) {
@@ -197,10 +196,18 @@ function scaleOctaves(octaves, lengthy, lengthx) {
 	return octaves
 	}
 
-function noiseGen(lengthy, lengthx, octaves, micronoise) {
-	//lengthy = Math.floor(lengthy)
-	//lengthx = Math.floor(lengthx)
-	console.log(lengthy, lengthx)
+function seedGen(lengthy, lengthx) {
+	let randoms = [];
+	for (let y = 0; y < lengthy; y++) {
+		randoms.push([]);
+		for (let x = 0; x < lengthx; x++) {
+			randoms[y].push(Math.random());
+			}
+		}
+	return randoms
+	}
+
+function noiseGen(seedarray, lengthy, lengthx, octaves, micronoise) {
 	// Length should also be a power of 2
 	// This part ensures octave steps don't exceed the array length
 	octaves = scaleOctaves(octaves, lengthy, lengthx)
@@ -209,14 +216,17 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 	let ycentre = (lengthy-1)/2
 	let xcentre = (lengthx-1)/2
 	
-	// Initialise seed array
-	let randoms = [];
+	// Select part of the seed array to use
+	let randoms = []
 	for (let y = 0; y < lengthy; y++) {
-		randoms.push([]);
+	randoms.push([])
 		for (let x = 0; x < lengthx; x++) {
-			randoms[y].push(Math.random());
+			randoms[y].push(seedarray[y][x])
 			}
 		}
+	console.log(randoms[0].length)
+	
+	// Initialise other arrays
 	let drops = [];
 	let combinationsum = 0;
 	let octavesarray = [];
@@ -226,7 +236,7 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 		octavesarray.push([]);
 		combined.push([]);
 		drops.push([]);
-		latitudes.push(dropOff((y/lengthy)-0.5, latitudedroprate))//circular((2*y/lengthy)-1))//-Math.abs(2*(y/lengthy) - 1) + 1)//dropOff((y/lengthy)-0.5, latitudedroprate))
+		latitudes.push(dropOff((y/lengthy)-0.5, latitudedroprate))//gaussian((y/lengthy)-0.5, 0, latitudesigma))//circular(2*(y/lengthy)-1))//dropOff((y/lengthy)-0.5, latitudedroprate))//circular((2*y/lengthy)-1))//-Math.abs(2*(y/lengthy) - 1) + 1)
 		for (let x = 0; x < lengthx; x++) {
 			octavesarray[y].push([]);
 			combined[y].push(0);
@@ -236,8 +246,8 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 				octavesarray[y][x].push([]);
 				let steps = 2**octave;
 				let stepsizey = Math.floor(lengthy/steps);
-				let stepsizex = Math.floor(lengthy/steps);
-				let y1 = Math.floor(y/stepsizex)*stepsizex;
+				let stepsizex = Math.floor(lengthx/steps);
+				let y1 = Math.floor(y/stepsizey)*stepsizey;
 				let x1 = Math.floor(x/stepsizex)*stepsizex;
 				let y2 = null;
 				let x2 = null;
@@ -289,7 +299,49 @@ function noiseGen(lengthy, lengthx, octaves, micronoise) {
 	return [combined, drops, latitudes]
 	}
 
+function slopeGen(topography, leny, lenx, waterlevel) {
+	let slopes = []
+	let slopemax = 0
+	let slopemin = 0
+	 for (let y = 0; y < leny; y++) {
+	 	slopes.push([])
+		for (let x = 0; x < lenx; x++) {
+			let thiselevation = topography[y][x]
+				//if (thiselevation < waterlevel) {
+				//	slopes[y].push([0]);
+				//	continue;
+				//	}
+			let largestlocalslope = 9999
+			let largestlocalslopediry = 0
+			let largestlocalslopedirx = 0
+			for (let diry = -1; diry < 2; diry++) {
+				for (let dirx = -1; dirx < 2; dirx++) {
+					if ((y+diry >= 0) && (y+diry < leny) && (x+dirx >= 0) && (x+dirx < lenx)) {
+						if (topography[y+diry][x+dirx] - thiselevation < largestlocalslope) {
+							largestlocalslope = topography[y+diry][x+dirx] - thiselevation
+							largestlocalslopediry = diry
+							largestlocalslopedirx = dirx
+							}
+						}
+					}
+				}
+			slopes[y].push(Math.abs(largestlocalslope)*Math.sign(largestlocalslopediry+largestlocalslopedirx))	
+			if (slopes[y][x] < slopemin) {slopemin = slopes[y][x]}
+			if (slopes[y][x] > slopemax) {slopemax = slopes[y][x]}
+			}
+		}
+		//console.log(slopemax,slopemin)
+	for (let y = 0; y < leny; y++) {
+		for (let x = 0; x < lenx; x++) {
+			slopes[y][x] = slopes[y][x]/(slopemax - slopemin)
+			}
+		}
+	return slopes
+	}
+
+let seed = seedGen(docheight, docwidth)
 let topography = null;
+let slopes = null;
 let drops = null;
 let latitudes = null;
 let watermap = [];
@@ -298,21 +350,33 @@ let moisturemap = [];
 
 function startGame() {
 	// Do all the initial creation
-	output = noiseGen(objectsy, objectsx, octaves, micronoise);
+	objectsy = docheight/scale
+	objectsx = docwidth/scale
+	pixelheight = Math.ceil(docheight/objectsy)
+	pixelwidth = Math.ceil(docwidth/objectsx)
+	points = [];
+	for (let y = 0; y < objectsy; y++) {
+		points[y] = [];
+		for (let x = 0; x < objectsx; x++) {
+			points[y][x] = 0;
+			}
+		}
+	output = noiseGen(seed, objectsy, objectsx, octaves, micronoise);
 	topography = output[0]
 	drops = output[1]
-	latitudes = output[2] //This id 1D
+	latitudes = output[2] //This is 1D
+	slopes = slopeGen(topography, objectsy, objectsx, waterlevel);
 	for (let y = 0; y < objectsy; y++) {
-		watermap[y] = topography[y].map(item => 0+(item <0.47));
+		watermap[y] = topography[y].map(item => 0+(item <waterlevel));
 		moisturemap[y] = []
 		humiditymap[y] = []
 		}
   for (let y = 0; y < objectsy; y++) {
 		for (let x = 0; x < objectsx; x++) {
 			moisturemap[y][x] = blur(y,x,watermap,moisturespread)//watermap[y][x]
-			humiditymap[y][x] = 0.6*moisturemap[y][x] + 0.4*latitudes[y]
+			humiditymap[y][x] = 0.55*moisturemap[y][x] + 0.45*latitudes[y]
 			//humiditymap[y][x] = 0.5*humiditymap[y][x] + 0.5*latitudes[y]
-			points[y][x] = new component(pixelheight, pixelwidth, y, x, topography[y][x], humiditymap[y][x], latitudes[y]);
+			points[y][x] = new component(pixelheight, pixelwidth, y, x, topography[y][x], slopes[y][x], drops[y][x], humiditymap[y][x], latitudes[y], waterlevel)
 			}
 		}
   myGameArea.start();
@@ -325,7 +389,7 @@ let myGameArea = {
         this.canvas.height = docheight;
         this.context = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
-        this.interval = setInterval(updateGameArea, 20);
+        this.interval = setInterval(updateGameArea, 50);
 				window.addEventListener('keydown', function (e) {
       		myGameArea.key = e.keyCode;
     			})
@@ -340,11 +404,14 @@ let myGameArea = {
 
 function updateGameArea() {
 	myGameArea.clear();
-	if (myGameArea.key && myGameArea.key == 72) {maptype = 'humidity';}
-	else if (myGameArea.key && myGameArea.key == 84) {maptype = 'temp';}
-	else if (myGameArea.key && myGameArea.key == 76) {maptype = 'latitude';}
-	else if (myGameArea.key && myGameArea.key == 69) {maptype = 'elevation';}
-	else if (myGameArea.key && myGameArea.key == 68) {maptype = 'dropoff';}
+	if (myGameArea.key && myGameArea.key == 72) {maptype = 'humidity';}//h
+	else if (myGameArea.key && myGameArea.key == 84) {maptype = 'temp';}//t
+	else if (myGameArea.key && myGameArea.key == 76) {maptype = 'latitude';}//l
+	else if (myGameArea.key && myGameArea.key == 69) {maptype = 'elevation';}//e
+	else if (myGameArea.key && myGameArea.key == 68) {maptype = 'dropoff';}//d
+	else if (myGameArea.key && myGameArea.key == 83) {maptype = 'slope';}//s
+	else if (myGameArea.key && myGameArea.key == 38) {if (scale < 10) {scale+=1; startGame()}}//up
+	else if (myGameArea.key && myGameArea.key == 40) {if (scale > 1) {scale-=1; startGame()}}//down
 	else {maptype = 'normal'}
 	for (let y = 0; y < objectsy; y++) {
 		for (let x = 0; x < objectsx; x++) {
