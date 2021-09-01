@@ -242,6 +242,13 @@ function noiseGen(seedarray, lengthy, lengthx, octaves, micronoise) {
 				let steps = 2**octave;
 				let stepsizey = Math.floor(lengthy/steps);
 				let stepsizex = Math.floor(lengthx/steps);
+				if (stepsizex < stepsizey) {
+					stepsizey = stepsizex
+					}
+				else if (stepsizey < stepsizex) {
+					stepsizex = stepsizey
+					}
+				
 				let y1 = Math.floor(y/stepsizey)*stepsizey;
 				let x1 = Math.floor(x/stepsizex)*stepsizex;
 				let y2 = null;
@@ -354,7 +361,7 @@ let latitudedroprate = 0.915//0.3*edgedroprate//0.18
 
 function startGame() {
 	// Set all generation parameters
-	combinationmu = 2.3 + 0.1*(1/scale) - 0.1*(100000/(docwidth*docheight))
+	combinationmu = 2.1 + 0.1*(1/scale) - 0.1*(100000/(docwidth*docheight))
 	combinationsigma = 2.3 + 0.1*(1/scale) - 0.1*(100000/(docwidth*docheight))
 	micronoise = 0.001*scale
 	objectsy = docheight/scale
