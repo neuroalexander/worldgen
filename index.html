@@ -22,7 +22,7 @@ canvas {
 <script>
 
 // Window parameters
-let scale = 2
+let scale = 3
 const octaves = 20
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
@@ -537,7 +537,7 @@ let combinationmu = 0 //Larger -> more higher octave components
 let combinationsigma = 0//Smaller -> faster reduction in octave plasticity
 let micronoise = 0//0.001*scale
 let edgedroprate = 0.4 + Math.random()*0.3 //Larger -> more peripheral water (more island-like)
-let moisturespread = 20 //Larger -> more diffuse spread of humidity
+let moisturespread = 10 //Larger -> more diffuse spread of humidity
 let latitudedroprate = 0.915//0.3*edgedroprate//0.18
 //const latitudesigma = 0.12
 
@@ -605,8 +605,11 @@ function updateGameArea() {
 	else if (myGameArea.key && myGameArea.key == 68) {maptype = 'dropoff';}//d
 	else if (myGameArea.key && myGameArea.key == 83) {maptype = 'slope';}//s
 	else if (myGameArea.key && myGameArea.key == 87) {maptype = 'water';}//w
-	else if (myGameArea.key && myGameArea.key == 38) {if (scale < 10) {scale+=1; startGame()}}//up
-	else if (myGameArea.key && myGameArea.key == 40) {if (scale > 1) {scale-=1; startGame()}}//down
+	else if (myGameArea.key && myGameArea.key == 49) {scale = 1; startGame()}
+	else if (myGameArea.key && myGameArea.key == 50) {scale = 2; startGame()}
+	else if (myGameArea.key && myGameArea.key == 51) {scale = 3; startGame()}
+	else if (myGameArea.key && myGameArea.key == 52) {scale = 4; startGame()}
+	else if (myGameArea.key && myGameArea.key == 53) {scale = 5; startGame()}
 	else {maptype = 'normal'}
 	let updateys = []
 	let updatexs = []
