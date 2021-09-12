@@ -22,11 +22,10 @@ canvas {
 <script>
 
 // Window parameters
-let scale = 3
+let scale = 2
 const octaves = 20
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
-if (docheight < 500 || docwidth < 500) {scale -= 1}
 let objectsy = docheight/scale
 let objectsx = docwidth/scale
 let pixelheight = Math.ceil(docheight/objectsy)
@@ -73,9 +72,9 @@ function component(height, width, y, x, elevation, slope, slopediry, slopedirx, 
 			
 			// Very rough vulcanism
 			//if ((this.elevation >0.6) && (this.elevation <= 0.999) && (this.updatecounter % 1 == 0)) {this.elevation +=0.00001}
-			
+
 			// Calculate slope
-			if (this.updatecounter%1==0) {
+			if (this.updatecounter%1==0 && this.hydraulicerosioninstances < 500) {
 				let slopesum = 0
 				let slopecount = 0
 				let largestlocalslope = 0
@@ -87,26 +86,26 @@ function component(height, width, y, x, elevation, slope, slopediry, slopedirx, 
 						if ((this.y+diry >= 0) && (this.y+diry < objectsy) && (this.x+dirx >= 0) && (this.x+dirx < objectsx)) {
 							if (points[this.y+diry][this.x+dirx].elevation - this.elevation < 0) {
 								negativeslopesum += points[this.y+diry][this.x+dirx].elevation - this.elevation
-								}
+							}
 							slopesum += points[this.y+diry][this.x+dirx].slope
 							slopecount += 1
 							if (points[this.y+diry][this.x+dirx].elevation - this.elevation < largestlocalslope) {
 								largestlocalslope = points[this.y+diry][this.x+dirx].elevation - this.elevation
 								largestlocalslopediry = diry
 								largestlocalslopedirx = dirx
-								}
 							}
 						}
 					}
+				}
 				this.averageslope = slopesum/slopecount;
 				this.slope = largestlocalslope;
 				this.slopediry = largestlocalslopediry;
 				this.slopedirx = largestlocalslopedirx;
 				this.negativeslopesum = negativeslopesum;
-				}
-			
+			}
+
 			// Hydraulic erosion
-			if (this.updatecounter%2==0) {
+			if (this.updatecounter%2==0 && this.hydraulicerosioninstances < 500) {
 				let nextpoint = points[this.y+this.slopediry][this.x+this.slopedirx]
 				let raindice = Math.floor(Math.random()*20)
 				if (raindice == 0) {this.raining = true}
@@ -120,17 +119,17 @@ function component(height, width, y, x, elevation, slope, slopediry, slopedirx, 
 					this.elevation -= erosionamount
 					this.solute += erosionamount
 					this.solvent -= evaporationamount
-					}
+				}
 				else if ((this.solute > this.solvent) && this.solvent >= 0 && this.solute >= 0) {
 					let depositionamount = 0.1*this.solute*(1-Math.abs(this.slope))
 					// Should deposition amount really just be this.solute-this.solvent?
 					this.elevation += depositionamount
 					this.solute -= depositionamount
 					this.solvent -= evaporationamount
-					}
+				}
 				else {
 					this.solvent -= evaporationamount
-					}
+				}
 				if (this.elevation > 1) {this.elevation = 1}
 				if (this.elevation < 0) {this.elevation = 0}
 				if (this.solute > 1) {this.solute = 1} // This improves the result, smoother descents
@@ -141,10 +140,9 @@ function component(height, width, y, x, elevation, slope, slopediry, slopedirx, 
 				// This passing is carried out in the slope function lower down
 				// The passing is only done for updates where hydraulic erosion was carried out
 				this.solventhistory = this.solvent
-				this.hydraulicerosioninstances += 1
 				//if (this.y==100 && this.x==150 && this.updatecounter%20==0) {console.log('elev:', this.elevation.toFixed(3), 'slope:', this.slope.toFixed(3), 'solute:', this.solute.toFixed(3), 'solvent:', this.solvent.toFixed(3), 'eramt:', erosionamount.toFixed(), 'depamt:', depositionamount.toFixed(3), 'evapamt:', evaporationamount.toFixed(3))}
-				}
-			
+			}
+
 			//Gravity erosion
 			if (this.updatecounter%2==1) {
 				let nextpoint = points[this.y+this.slopediry][this.x+this.slopedirx]
@@ -156,8 +154,8 @@ function component(height, width, y, x, elevation, slope, slopediry, slopedirx, 
 				nextpoint.elevation += erosionamount
 				if (this.elevation < 0) {this.elevation = 0}
 				if (nextpoint.elevation > 1) {nextpoint.elevation = 1}
-				}
-				
+			}
+
 			// Re-Calculate slope
 			if (this.updatecounter%1==0) {
 				let slopesum = 0
@@ -171,45 +169,46 @@ function component(height, width, y, x, elevation, slope, slopediry, slopedirx, 
 						if ((this.y+diry >= 0) && (this.y+diry < objectsy) && (this.x+dirx >= 0) && (this.x+dirx < objectsx)) {
 							if (points[this.y+diry][this.x+dirx].elevation - this.elevation < 0) {
 								negativeslopesum += points[this.y+diry][this.x+dirx].elevation - this.elevation
-								}
+							}
 							slopesum += points[this.y+diry][this.x+dirx].slope
 							slopecount += 1
 							if (points[this.y+diry][this.x+dirx].elevation - this.elevation < largestlocalslope) {
 								largestlocalslope = points[this.y+diry][this.x+dirx].elevation - this.elevation
 								largestlocalslopediry = diry
 								largestlocalslopedirx = dirx
-								}
 							}
 						}
 					}
+				}
 				this.averageslope = slopesum/slopecount;
 				this.slope = largestlocalslope;
 				this.slopediry = largestlocalslopediry;
 				this.slopedirx = largestlocalslopedirx;
 				this.negativeslopesum = negativeslopesum;
-				}
+			}
 				
-				//Distribute solvent and solute based on new slope
-				if (this.updatecounter%2==0) {
-					if (this.slope != 0) {
-						for (let diry = -1; diry < 2; diry++) {
-							for (let dirx = -1; dirx < 2; dirx++) {
-								if ((this.y+diry >= 0) && (this.y+diry < objectsy) && (this.x+dirx >= 0) && (this.x+dirx < objectsx)) {
-									let nextpoint = points[this.y+diry][this.x+dirx]
-										if (points[this.y+diry][this.x+dirx].elevation - this.elevation < 0) {
-											let spillportion = (points[this.y+diry][this.x+dirx].elevation - this.elevation)/this.negativeslopesum
-											nextpoint.solvent += spillportion*this.solvent
-											nextpoint.solute += spillportion*this.solute
-											//if (this.y==50 && this.x==50){console.log(this.negativeslopesum, nextpoint.slope, spillportion, diry)}
-										}
-									}
+			//Distribute solvent and solute based on new slope
+			if (this.updatecounter%2==0 && this.hydraulicerosioninstances < 500) {
+				if (this.slope != 0) {
+					for (let diry = -1; diry < 2; diry++) {
+						for (let dirx = -1; dirx < 2; dirx++) {
+							if ((this.y+diry >= 0) && (this.y+diry < objectsy) && (this.x+dirx >= 0) && (this.x+dirx < objectsx)) {
+								let nextpoint = points[this.y+diry][this.x+dirx]
+								if (points[this.y+diry][this.x+dirx].elevation - this.elevation < 0) {
+									let spillportion = (points[this.y+diry][this.x+dirx].elevation - this.elevation)/this.negativeslopesum
+									nextpoint.solvent += spillportion*this.solvent
+									nextpoint.solute += spillportion*this.solute
+									//if (this.y==50 && this.x==50){console.log(this.negativeslopesum, nextpoint.slope, spillportion, diry)}
 								}
 							}
-						this.solvent = 0
-						this.solute = 0
 						}
 					}
-			
+					this.solvent = 0
+					this.solute = 0
+					this.hydraulicerosioninstances += 1
+				}
+			}
+
 			// Colour assignment
 			this.colour = colourGet(this.elevation, this.landmasselevation, this.slope, this.slopediry, this.slopedirx, this.solventhistory, this.edgedrop, this.humidity, this.latitude, this.temp, waterlevel, maptype)
 			ctx = myGameArea.context;
