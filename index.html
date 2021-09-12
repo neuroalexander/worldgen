@@ -26,6 +26,7 @@ let scale = 2
 const octaves = 20
 const docheight = document.documentElement.clientHeight;
 const docwidth = document.documentElement.clientWidth;
+if (docheight < 500 || docwidth < 500) {scale -= 1}
 let objectsy = docheight/scale
 let objectsx = docwidth/scale
 let pixelheight = Math.ceil(docheight/objectsy)
@@ -41,199 +42,37 @@ for (let y = 0; y < objectsy; y++) {
 		points[y][x] = 0;
 		}
 	}
-
-function component(height, width, y, x, elevation, slope, slopediry, slopedirx, edgedrop, humidity, latitude, waterlevel) {
-    this.updatecounter = 0
-		this.width = width;
+	
+function component(height, width, y, x, elevation, slope, edgedrop, humidity, latitude, waterlevel) {
+    this.width = width;
     this.height = height;
 		this.x = x;
     this.y = y; 
 		this.elevation = elevation;
 		this.slope = slope;
-		this.negativeslopesum = 0;
-		this.averageslope = slope;
-		this.slopediry = slopediry;
-		this.slopedirx = slopedirx;
-		this.landmasselevation = this.elevation < waterlevel - 0.08 ? waterlevel - 0.08 : this.elevation
+		this.landmasselevation = elevation < waterlevel - 0.08 ? waterlevel - 0.08 : elevation
 		this.edgedrop = edgedrop
 		this.humidity = humidity
 		this.latitude = latitude
 		this.temp = 0.8*(1-(this.landmasselevation/(1-(waterlevel - 0.08)))) + 0.2*this.latitude
-		this.solvent = this.elevation < waterlevel ? 1 : 0
-		this.solventhistory = this.solvent
-		this.solute = 0
-		this.raining = false
-		this.hydraulicerosioninstances = 0
     this.colour = 'DarkRed'
     this.update = function(){
-			// General
-			this.landmasselevation = this.elevation < waterlevel - 0.08 ? waterlevel - 0.08 : this.elevation
-			this.temp = 0.8*(1-(this.landmasselevation/(1-(waterlevel - 0.08)))) + 0.2*this.latitude
-			
-			// Very rough vulcanism
-			//if ((this.elevation >0.6) && (this.elevation <= 0.999) && (this.updatecounter % 1 == 0)) {this.elevation +=0.00001}
+				this.colour = colourGet(this.elevation, this.landmasselevation, this.slope, this.edgedrop, this.humidity, this.latitude, this.temp, waterlevel, maptype)
+        ctx = myGameArea.context;
+        ctx.fillStyle = this.colour;
+        ctx.fillRect(this.x*pixelwidth, this.y*pixelheight, this.width, this.height);
+    }
+}
 
-			// Calculate slope
-			if (this.updatecounter%1==0 && this.hydraulicerosioninstances < 500) {
-				let slopesum = 0
-				let slopecount = 0
-				let largestlocalslope = 0
-				let largestlocalslopediry = 0
-				let largestlocalslopedirx = 0
-				let negativeslopesum = 0
-				for (let diry = -1; diry < 2; diry++) {
-					for (let dirx = -1; dirx < 2; dirx++) {
-						if ((this.y+diry >= 0) && (this.y+diry < objectsy) && (this.x+dirx >= 0) && (this.x+dirx < objectsx)) {
-							if (points[this.y+diry][this.x+dirx].elevation - this.elevation < 0) {
-								negativeslopesum += points[this.y+diry][this.x+dirx].elevation - this.elevation
-							}
-							slopesum += points[this.y+diry][this.x+dirx].slope
-							slopecount += 1
-							if (points[this.y+diry][this.x+dirx].elevation - this.elevation < largestlocalslope) {
-								largestlocalslope = points[this.y+diry][this.x+dirx].elevation - this.elevation
-								largestlocalslopediry = diry
-								largestlocalslopedirx = dirx
-							}
-						}
-					}
-				}
-				this.averageslope = slopesum/slopecount;
-				this.slope = largestlocalslope;
-				this.slopediry = largestlocalslopediry;
-				this.slopedirx = largestlocalslopedirx;
-				this.negativeslopesum = negativeslopesum;
-			}
-
-			// Hydraulic erosion
-			if (this.updatecounter%2==0 && this.hydraulicerosioninstances < 500) {
-				let nextpoint = points[this.y+this.slopediry][this.x+this.slopedirx]
-				let raindice = Math.floor(Math.random()*20)
-				if (raindice == 0) {this.raining = true}
-				else {this.raining = false}
-				if (this.raining) {this.solvent += 0.1}
-				let evaporationamount = 0.005
-				//If erosion or evaporation is too fast, big vertical spikes form. Fix this - ensure cannot deposit so much that the neighbouring point becomes higher than the original. If so, only shift the excess. 
-				if ((this.solvent > this.solute) && this.solvent >= 0 && this.solute >= 0) {
-					let erosionamount = 0.1*this.solvent*Math.abs(this.slope)
-					if (this.elevation < waterlevel-0.01) {erosionamount=0}
-					this.elevation -= erosionamount
-					this.solute += erosionamount
-					this.solvent -= evaporationamount
-				}
-				else if ((this.solute > this.solvent) && this.solvent >= 0 && this.solute >= 0) {
-					let depositionamount = 0.1*this.solute*(1-Math.abs(this.slope))
-					// Should deposition amount really just be this.solute-this.solvent?
-					this.elevation += depositionamount
-					this.solute -= depositionamount
-					this.solvent -= evaporationamount
-				}
-				else {
-					this.solvent -= evaporationamount
-				}
-				if (this.elevation > 1) {this.elevation = 1}
-				if (this.elevation < 0) {this.elevation = 0}
-				if (this.solute > 1) {this.solute = 1} // This improves the result, smoother descents
-				if (this.solvent > 1) {this.solvent = 1} // This improves the result, smoother descents
-				if (this.solvent < 0) {this.solvent = 0}
-				if (this.solute < 0) {this.solute = 0}
-				// Then pass the droplet only if nextpoint is a different one
-				// This passing is carried out in the slope function lower down
-				// The passing is only done for updates where hydraulic erosion was carried out
-				this.solventhistory = this.solvent
-				//if (this.y==100 && this.x==150 && this.updatecounter%20==0) {console.log('elev:', this.elevation.toFixed(3), 'slope:', this.slope.toFixed(3), 'solute:', this.solute.toFixed(3), 'solvent:', this.solvent.toFixed(3), 'eramt:', erosionamount.toFixed(), 'depamt:', depositionamount.toFixed(3), 'evapamt:', evaporationamount.toFixed(3))}
-			}
-
-			//Gravity erosion
-			if (this.updatecounter%2==1) {
-				let nextpoint = points[this.y+this.slopediry][this.x+this.slopedirx]
-				let erosionamount = 0
-				if (this.slope < -0.035 && this.elevation > waterlevel+0.03)	{erosionamount = 0.05*Math.abs(this.slope)}
-				else if (this.slope < -0.025 && this.elevation > waterlevel && this.elevation <= waterlevel+0.03)	{erosionamount = 0.1*Math.abs(this.slope)}
-				else if (this.slope < -0.02 && this.elevation <= waterlevel)	{erosionamount = 0.2*Math.abs(this.slope)}
-				this.elevation -= erosionamount
-				nextpoint.elevation += erosionamount
-				if (this.elevation < 0) {this.elevation = 0}
-				if (nextpoint.elevation > 1) {nextpoint.elevation = 1}
-			}
-
-			// Re-Calculate slope
-			if (this.updatecounter%1==0) {
-				let slopesum = 0
-				let slopecount = 0
-				let largestlocalslope = 0
-				let largestlocalslopediry = 0
-				let largestlocalslopedirx = 0
-				let negativeslopesum = 0
-				for (let diry = -1; diry < 2; diry++) {
-					for (let dirx = -1; dirx < 2; dirx++) {
-						if ((this.y+diry >= 0) && (this.y+diry < objectsy) && (this.x+dirx >= 0) && (this.x+dirx < objectsx)) {
-							if (points[this.y+diry][this.x+dirx].elevation - this.elevation < 0) {
-								negativeslopesum += points[this.y+diry][this.x+dirx].elevation - this.elevation
-							}
-							slopesum += points[this.y+diry][this.x+dirx].slope
-							slopecount += 1
-							if (points[this.y+diry][this.x+dirx].elevation - this.elevation < largestlocalslope) {
-								largestlocalslope = points[this.y+diry][this.x+dirx].elevation - this.elevation
-								largestlocalslopediry = diry
-								largestlocalslopedirx = dirx
-							}
-						}
-					}
-				}
-				this.averageslope = slopesum/slopecount;
-				this.slope = largestlocalslope;
-				this.slopediry = largestlocalslopediry;
-				this.slopedirx = largestlocalslopedirx;
-				this.negativeslopesum = negativeslopesum;
-			}
-				
-			//Distribute solvent and solute based on new slope
-			if (this.updatecounter%2==0 && this.hydraulicerosioninstances < 500) {
-				if (this.slope != 0) {
-					for (let diry = -1; diry < 2; diry++) {
-						for (let dirx = -1; dirx < 2; dirx++) {
-							if ((this.y+diry >= 0) && (this.y+diry < objectsy) && (this.x+dirx >= 0) && (this.x+dirx < objectsx)) {
-								let nextpoint = points[this.y+diry][this.x+dirx]
-								if (points[this.y+diry][this.x+dirx].elevation - this.elevation < 0) {
-									let spillportion = (points[this.y+diry][this.x+dirx].elevation - this.elevation)/this.negativeslopesum
-									nextpoint.solvent += spillportion*this.solvent
-									nextpoint.solute += spillportion*this.solute
-									//if (this.y==50 && this.x==50){console.log(this.negativeslopesum, nextpoint.slope, spillportion, diry)}
-								}
-							}
-						}
-					}
-					this.solvent = 0
-					this.solute = 0
-					this.hydraulicerosioninstances += 1
-				}
-			}
-
-			// Colour assignment
-			this.colour = colourGet(this.elevation, this.landmasselevation, this.slope, this.slopediry, this.slopedirx, this.solventhistory, this.edgedrop, this.humidity, this.latitude, this.temp, waterlevel, maptype)
-			ctx = myGameArea.context;
-			//if (this.y==100 && this.x==150) {this.colour = 'Red'}
-			ctx.fillStyle = this.colour;
-			ctx.fillRect(this.x*pixelwidth, this.y*pixelheight, this.width, this.height);
-			this.updatecounter += 1
-			}
-		}
-
-function colourGet(elevation, landmasselevation, slope, slopediry, slopedirx, solvent, edgedrop, humidity, latitude, temp, waterlevel, type) {
+function colourGet(elevation, landmasselevation, slope, edgedrop, humidity, latitude, temp, waterlevel, type) {
 		let output = 0;
 		let green = 0;
 		let red = 0;
 		let blue = 0;
 		let brightness = 0;
 		let oceanfloor = false;
-		let slopescaling = 0.75
-		slope = Math.abs(slope)/(initialmaxslope-initialminslope)
-		if (slopediry+slopedirx == -2) {slope = slope}
-		else if (slopediry+slopedirx == -1) {slope = slope}
-		else if (slopediry+slopedirx == 0) {slope = 0}
-		else if (slopediry+slopedirx == 1) {slope = -slope}
-		else if (slopediry+slopedirx == 2) {slope = -slope}
-		slope = 1+slope
+		let slopescaling = 1
+		slope = 1-slope
 
 		// Feature maps
 		if (type == 'humidity') {return `rgb(${255*humidity},${255*humidity},${255*humidity})`}
@@ -241,25 +80,14 @@ function colourGet(elevation, landmasselevation, slope, slopediry, slopedirx, so
 		else if (type == 'latitude') {return `rgb(${255*latitude},${255*latitude},${255*latitude})`}
 		else if (type == 'dropoff') {return `rgb(${255*edgedrop},${255*edgedrop},${255*edgedrop})`}
 		else if (type == 'elevation') {return `rgb(${255*landmasselevation},${255*landmasselevation},${255*landmasselevation})`}
-		// water map code is lower as it's overlaid on the land
-		//else if (type == 'water') {return `rgb(${255*solvent},${255*solvent},${255*solvent})`}
-		else if (type == 'water') {
-			//if (solvent > 0) {
-				return `rgb(${255*(solvent)},${255*(solvent)},${255*(solvent)})`
-			//	}
-			//else {return `rgb(${255*elevation},${255*elevation},${255*elevation})`}
-			}
-		else if (type == 'slope') {
-			if (elevation > waterlevel) {
-				return `rgb(${255*slope},${255*slope},${255*slope})`
-				}
-			}
+		else if (type == 'slope') {return `rgb(${255*slope},${255*slope},${255*slope})`}
+		else {}
 		
 		// Greenery and land covering
-		if (elevation < waterlevel-0.08) {output = [0, 128, 128]; oceanfloor='deep'}//'Teal'}
-		else if (elevation < waterlevel-0.05) {output = [0, 139, 139]; oceanfloor='shallow'}//'DarkCyan'
-		else if (elevation < waterlevel-0.02) {output = [32, 178, 170]; oceanfloor='shallow'}//'LightSeaGreen'
-		else if (elevation < waterlevel) {output = [102, 205, 170]; oceanfloor='shallow'}//'MediumAquaMarine'}
+		if (elevation < waterlevel-0.08) {output = [0, 128, 128]; oceanfloor=true}//'Teal'}
+		else if (elevation < waterlevel-0.05) {output = [0, 139, 139]; oceanfloor=true}//'DarkCyan'
+		else if (elevation < waterlevel-0.02) {output = [32, 178, 170]; oceanfloor=true}//'LightSeaGreen'
+		else if (elevation < waterlevel) {output = [102, 205, 170]; oceanfloor=true}//'MediumAquaMarine'}
 		else if (elevation < waterlevel+0.01) {output = [240, 230, 140]}//'Khaki'}
 		else if (elevation < 0.52) {output = [
 		0.8*(0.9*0 + 0.1*(1-humidity)*255) + 0.2*(1-humidity)*255, 
@@ -283,21 +111,20 @@ function colourGet(elevation, landmasselevation, slope, slopediry, slopedirx, so
 		0.9*47 + 0.1*(1-humidity)*255]}//'DarkOliveGreen'}
 		else if (elevation < 0.7) {output = [105, 105, 105]}//'DimGrey'}
 		else if (elevation < 0.74) {output = [128, 128, 128]}//'Grey'}
-		else if (elevation < 1) {output = [169, 169, 169]}//'DarkGrey'}
+		else if (elevation < 0.78) {output = [169, 169, 169]}//'DarkGrey'}
 		
 		// Temperature-dependent snow effects
 		if (temp < 0.01) {output = [255, 255, 255]}//'White'
 		else if (temp < 0.02) {output = [248, 248, 255]}//'GhostWhite'
 		else if (temp < 0.03) {output = [245, 245, 245]}//'WhiteSmoke'
 		else if (temp < 0.05) {output = [220, 220, 220]}//'Gainsboro'
+		else if ((temp < 0.06) && (elevation < waterlevel)) {output = [32, 178, 170]; oceanfloor=true}//'LightSeaGreen'
+		else if ((temp < 0.08) && (elevation < waterlevel)) {output = [0, 139, 139]; oceanfloor=true}// 'DarkCyan'
 	
-	//Slope shading
-	if (oceanfloor=='deep') {slopescaling = slopescaling/4}
-	if (oceanfloor=='shallow') {slopescaling = slopescaling/2}
+	if (oceanfloor) {slopescaling = 0.25}
 	red = Math.round((1-slopescaling)*output[0] + slopescaling*output[0]*slope)
 	green = Math.round((1-slopescaling)*output[1] + slopescaling*output[1]*slope)
 	blue = Math.round((1-slopescaling)*output[2] + slopescaling*output[2]*slope)
-		
 	return `rgb(${red},${green},${blue})`	
 	}
 
@@ -476,17 +303,17 @@ function noiseGen(seedarray, lengthy, lengthx, octaves, micronoise) {
 
 function slopeGen(topography, leny, lenx, waterlevel) {
 	let slopes = []
-	let slopexdirs =[]
-	let slopeydirs = []
 	let slopemax = 0
 	let slopemin = 0
-	for (let y = 0; y < leny; y++) {
+	 for (let y = 0; y < leny; y++) {
 	 	slopes.push([])
-		slopexdirs.push([])
-		slopeydirs.push([])
 		for (let x = 0; x < lenx; x++) {
 			let thiselevation = topography[y][x]
-			let largestlocalslope = 0
+				//if (thiselevation < waterlevel) {
+				//	slopes[y].push([0]);
+				//	continue;
+				//	}
+			let largestlocalslope = 9999
 			let largestlocalslopediry = 0
 			let largestlocalslopedirx = 0
 			for (let diry = -1; diry < 2; diry++) {
@@ -500,11 +327,7 @@ function slopeGen(topography, leny, lenx, waterlevel) {
 						}
 					}
 				}
-			slopexdirs[y].push(largestlocalslopedirx)
-			slopeydirs[y].push(largestlocalslopediry)
-			slopes[y].push(largestlocalslope)
-			// This line calculates shading
-			//slopes[y].push(Math.abs(largestlocalslope)*Math.sign(largestlocalslopediry+largestlocalslopedirx))	
+			slopes[y].push(Math.abs(largestlocalslope)*Math.sign(largestlocalslopediry+largestlocalslopedirx))	
 			if (slopes[y][x] < slopemin) {slopemin = slopes[y][x]}
 			if (slopes[y][x] > slopemax) {slopemax = slopes[y][x]}
 			}
@@ -512,12 +335,10 @@ function slopeGen(topography, leny, lenx, waterlevel) {
 		//console.log(slopemax,slopemin)
 	for (let y = 0; y < leny; y++) {
 		for (let x = 0; x < lenx; x++) {
-			let initial = slopes[y][x]
 			slopes[y][x] = slopes[y][x]/(slopemax - slopemin)
-			let final = slopes[y][x]
 			}
 		}
-	return [slopes, slopeydirs, slopexdirs, slopemax, slopemin]
+	return slopes
 	}
 
 let seed = seedGen(docheight, docwidth)
@@ -528,21 +349,19 @@ let latitudes = null;
 let watermap = [];
 let humiditymap = [];
 let moisturemap = [];
-let initialmaxslope = null;
-let initialminslope = null;
 
 // Initialise generation parameters
 let combinationmu = 0 //Larger -> more higher octave components
 let combinationsigma = 0//Smaller -> faster reduction in octave plasticity
 let micronoise = 0//0.001*scale
 let edgedroprate = 0.4 + Math.random()*0.3 //Larger -> more peripheral water (more island-like)
-let moisturespread = 10 //Larger -> more diffuse spread of humidity
+let moisturespread = 20 //Larger -> more diffuse spread of humidity
 let latitudedroprate = 0.915//0.3*edgedroprate//0.18
 //const latitudesigma = 0.12
 
 function startGame() {
 	// Set all generation parameters
-	combinationmu = 1.9 + 0.1*(1/scale) - 0.1*(100000/(docwidth*docheight))
+	combinationmu = 2.1 + 0.1*(1/scale) - 0.1*(100000/(docwidth*docheight))
 	combinationsigma = 2.3 + 0.1*(1/scale) - 0.1*(100000/(docwidth*docheight))
 	micronoise = 0.001*scale
 	objectsy = docheight/scale
@@ -556,8 +375,6 @@ function startGame() {
 	drops = output[1]
 	latitudes = output[2] //This is 1D
 	slopes = slopeGen(topography, objectsy, objectsx, waterlevel);
-	initialmaxslope = slopes[3]
-	initialminslope = slopes[4]
 	points = [];
 	for (let y = 0; y < objectsy; y++) {
 		watermap[y] = topography[y].map(item => 0+(item <waterlevel));
@@ -569,7 +386,8 @@ function startGame() {
 		for (let x = 0; x < objectsx; x++) {
 			moisturemap[y][x] = blur(y,x,watermap,moisturespread)//watermap[y][x]
 			humiditymap[y][x] = 0.55*moisturemap[y][x] + 0.45*latitudes[y]
-			points[y][x] = new component(pixelheight, pixelwidth, y, x, topography[y][x], slopes[0][y][x], slopes[1][y][x], slopes[2][y][x], drops[y][x], humiditymap[y][x], latitudes[y], waterlevel)
+			//humiditymap[y][x] = 0.5*humiditymap[y][x] + 0.5*latitudes[y]
+			points[y][x] = new component(pixelheight, pixelwidth, y, x, topography[y][x], slopes[y][x], drops[y][x], humiditymap[y][x], latitudes[y], waterlevel)
 			}
 		}
   myGameArea.start();
@@ -582,7 +400,7 @@ let myGameArea = {
         this.canvas.height = docheight;
         this.context = this.canvas.getContext("2d");
         document.body.insertBefore(this.canvas, document.body.childNodes[0]);
-        this.interval = setInterval(updateGameArea, 20);
+        this.interval = setInterval(updateGameArea, 50);
 				window.addEventListener('keydown', function (e) {
       		myGameArea.key = e.keyCode;
     			})
@@ -594,7 +412,7 @@ let myGameArea = {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 }
-let paniccheck = 0
+
 function updateGameArea() {
 	myGameArea.clear();
 	if (myGameArea.key && myGameArea.key == 72) {maptype = 'humidity';}//h
@@ -603,50 +421,18 @@ function updateGameArea() {
 	else if (myGameArea.key && myGameArea.key == 69) {maptype = 'elevation';}//e
 	else if (myGameArea.key && myGameArea.key == 68) {maptype = 'dropoff';}//d
 	else if (myGameArea.key && myGameArea.key == 83) {maptype = 'slope';}//s
-	else if (myGameArea.key && myGameArea.key == 87) {maptype = 'water';}//w
 	else if (myGameArea.key && myGameArea.key == 49) {scale = 1; startGame()}
 	else if (myGameArea.key && myGameArea.key == 50) {scale = 2; startGame()}
 	else if (myGameArea.key && myGameArea.key == 51) {scale = 3; startGame()}
 	else if (myGameArea.key && myGameArea.key == 52) {scale = 4; startGame()}
 	else if (myGameArea.key && myGameArea.key == 53) {scale = 5; startGame()}
 	else {maptype = 'normal'}
-	let updateys = []
-	let updatexs = []
 	for (let y = 0; y < objectsy; y++) {
-		updateys.push(y)
-		}
-	for (let x = 0; x < objectsx; x++) {
-		updatexs.push(x)
-		}
-	updateys = shuffle(updateys)
-	updatexs = shuffle(updatexs)
-	for (let yindex = 0; yindex < objectsy; yindex++) {
-		for (let xindex = 0; xindex < objectsx; xindex++) {
-			points[updateys[yindex]][updatexs[xindex]].update()
+		for (let x = 0; x < objectsx; x++) {
+		points[y][x].update()
 			}
 		}
-	paniccheck = 0
 	}
-
-// Copy-pasted shuffle function
-function shuffle(array) {
-  var currentIndex = array.length,  randomIndex;
-
-  // While there remain elements to shuffle...
-  while (currentIndex != 0) {
-
-    // Pick a remaining element...
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-
-    // And swap it with the current element.
-    [array[currentIndex], array[randomIndex]] = [
-      array[randomIndex], array[currentIndex]];
-  }
-
-  return array;
-}
-
 </script>
 </body>
 </html>
